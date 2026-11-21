@@ -28,4 +28,13 @@ describe('NowWork backups', () => {
     expect(restored.notes).toEqual([note]);
     expect(restored.flashcards).toEqual([card]);
   });
+
+  it('preserves an explicit font and a saved weight after changing the notebook default font', () => {
+    const data = emptyData();
+    data.profile.editorTypography = { h1: { font: 'Inter Tight', weight: 900 }, p: { weight: 100 } };
+
+    const restored = validateData(data);
+
+    expect(restored.profile.editorTypography).toEqual(data.profile.editorTypography);
+  });
 });

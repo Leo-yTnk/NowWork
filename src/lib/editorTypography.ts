@@ -29,6 +29,8 @@ const variable = (name: string, min: number, max: number, fallback = 'sans-serif
   range: [min, max],
 });
 
+const defaultSans = variable('Plus Jakarta Sans', 200, 800);
+
 export const editorFonts: readonly EditorFont[] = [
   { name: 'Arial', family: "Arial, 'Arimo Variable', sans-serif", weights: [400, 700] },
   variable('Bitter', 100, 900, 'serif'),
@@ -48,6 +50,7 @@ export const editorFonts: readonly EditorFont[] = [
   variable('Open Sans', 300, 800),
   variable('Oswald', 200, 700),
   variable('Playfair Display', 400, 900, 'serif'),
+  defaultSans,
   { name: 'Poppins', family: 'Poppins, sans-serif', weights: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
   variable('Quicksand', 300, 700),
   variable('Roboto', 100, 900),
@@ -68,7 +71,7 @@ export function allowsWeight(weight: unknown, font?: EditorFont): weight is numb
 }
 
 export function defaultEditorFont(style: EditorTextStyle) {
-  return findEditorFont(style === 'code' ? 'Monoespaçada' : style.startsWith('h') ? 'Inter Tight' : 'Inter')!;
+  return style === 'code' ? findEditorFont('Monoespaçada')! : defaultSans;
 }
 
 export function validateEditorTypography(value: unknown): EditorTypography {
@@ -79,8 +82,11 @@ export function validateEditorTypography(value: unknown): EditorTypography {
     const entry = entries[style];
     if (!entry || typeof entry !== 'object') continue;
     const font = typeof entry.font === 'string' ? editorFonts.find(({ name }) => name === entry.font) : undefined;
-    if (font || allowsWeight(entry.weight, defaultEditorFont(style))) {
-      typography[style] = { font: font?.name, weight: allowsWeight(entry.weight, font ?? defaultEditorFont(style)) ? entry.weight : undefined };
+    // A saved weight can outlive its default font. CSS resolves it to a supported weight.
+    const weightFont = font ?? (style === 'code' ? defaultEditorFont(style) : undefined);
+    const weight = allowsWeight(entry.weight, weightFont) ? entry.weight : undefined;
+    if (font || weight !== undefined) {
+      typography[style] = { font: font?.name, weight };
     }
   }
   return typography;

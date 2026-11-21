@@ -1,7 +1,7 @@
 /* NowWork | Design tokens: single source of truth */
 :root {
-  --font-body: 'Inter Variable', Inter, system-ui, sans-serif;
-  --font-heading: 'Inter Tight Variable', 'Inter Tight', var(--font-body);
+  --font-body: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-heading: var(--font-body);
   font-family: var(--font-body);
   font-weight: 400;
   color-scheme: light;
