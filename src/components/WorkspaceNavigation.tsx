@@ -106,16 +106,16 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
             {notebook?.pagesOpen ? <PanelLeftClose size={19} /> : <PanelLeftOpen size={19} />}
           </IconButton>
         </div>
-        <IconButton label={!history.back && notebook ? 'Voltar para páginas' : 'Voltar'} disabled={!history.back && !notebook}
+        <IconButton className="workspace-history-step" label={!history.back && notebook ? 'Voltar para páginas' : 'Voltar'} disabled={!history.back && !notebook}
           onClick={() => {
             if (history.back) window.history.back();
             else if (notebook) window.location.hash = notebook.directoryHref;
           }}><ArrowLeft size={18} /></IconButton>
-        <IconButton label="Avançar" disabled={!history.forward} onClick={() => window.history.forward()}><ArrowRight size={18} /></IconButton>
+        <IconButton className="workspace-history-step" label="Avançar" disabled={!history.forward} onClick={() => window.history.forward()}><ArrowRight size={18} /></IconButton>
       </Toolbar>
       <nav className="workspace-primary" aria-label="Navegação principal">
         <NavigationIndicator className="workspace-current" activeKey={current} />
-        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-current={current === area ? 'page' : undefined}>
+        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-label={title} aria-current={current === area ? 'page' : undefined}>
           <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
         </a>)}
       </nav>
