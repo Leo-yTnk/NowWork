@@ -18,7 +18,7 @@ a { color: inherit; }
 .brand span { color: var(--accent); }
 .screen { display: flex; flex-direction: column; gap: 22px; }
 h1,h2,h3,p { margin-top: 0; }
-h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); color: var(--ink-strong); letter-spacing: -.025em; font-weight: 800; }
+h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); color: var(--ink-strong); letter-spacing: var(--letter-title); font-weight: 800; }
 h2,h3 { font-weight: 700; }
 p { line-height: 1.55; }
 .section-note { color: var(--tertiary); font-size: 12px; }
@@ -171,7 +171,7 @@ p { line-height: 1.55; }
 /* Modal inferior elástico */
 .sheet-root { position: fixed; z-index: 80; inset: 0; }
 .sheet-backdrop { position: absolute; inset: 0; background: var(--overlay); }
-.elastic-sheet { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100%,600px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl) var(--radius-xl) 0 0; box-shadow: var(--shadow-sheet); display: flex; flex-direction: column; overflow: hidden; will-change: height; }
+.elastic-sheet { position: absolute; bottom: 0; inset-inline: 0; margin-inline: auto; width: min(100%,600px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl) var(--radius-xl) 0 0; box-shadow: var(--shadow-sheet); display: flex; flex-direction: column; overflow: hidden; will-change: transform; }
 .sheet-grab { height: 32px; flex: 0 0 32px; display: grid; place-items: center; touch-action: none; color: var(--tertiary); cursor: ns-resize; user-select: none; }
 .sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 0 25px 13px; border-bottom: 1px solid var(--line); }
 .sheet-head h2 { margin: 0; font-size: 21px; }
