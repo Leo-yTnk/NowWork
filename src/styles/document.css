@@ -49,7 +49,19 @@ html:has(.nw-shell[data-notebook-page]) {
   .document-layout { --note-sidebar-motion: 0ms; }
 }
 .document-layout[data-pages-open='true'] { grid-template-columns: var(--note-sidebar-width) minmax(0, 1fr); }
-.document-writing-area { min-width: 0; }
+.document-writing-area { min-width: 0; background: var(--note-canvas, transparent); }
+:root:not([data-theme='dark']) .document-layout {
+  --note-canvas: #fbfaf7;
+  --note-chrome: #eeebe6;
+  --note-tools: #f5f2ed;
+  --note-divider: #d5cfc6;
+}
+:root:not([data-theme='dark']) .document-content .tiptap > :is(h1, h2, h3, h4, h5, h6):not(:first-child) {
+  margin-block-start: 1.35em;
+}
+:root:not([data-theme='dark']) .document-content .tiptap p {
+  margin-block-end: var(--space-4);
+}
 .document-sidebar-slot {
   position: sticky;
   top: var(--note-header-offset);
@@ -71,8 +83,8 @@ html:has(.nw-shell[data-notebook-page]) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-3);
-  border-inline-end: 1px solid var(--line);
-  background: var(--rail);
+  border-inline-end: 1px solid var(--note-divider, var(--line));
+  background: var(--note-chrome, var(--rail));
 }
 .document-sidebar-heading {
   display: flex;
@@ -237,8 +249,8 @@ html:has(.nw-shell[data-notebook-page]) {
   align-items: center;
   min-height: 48px;
   padding: var(--space-2) max(var(--space-3), calc((100% - var(--content-width)) / 2));
-  background: var(--surface-soft);
-  border-block-end: 1px solid var(--line);
+  background: var(--note-tools, var(--surface-soft));
+  border-block-end: 1px solid var(--note-divider, var(--line));
 }
 .note-command-scroll {
   display: flex;
@@ -426,9 +438,9 @@ html:has(.nw-shell[data-notebook-page]) {
   .note-dock .note-command-bar {
     justify-content: center;
     padding: var(--space-1);
-    border: 1px solid var(--line);
+    border: 1px solid var(--note-divider, var(--line));
     border-radius: var(--radius-md);
-    background: var(--surface-raised);
+    background: var(--note-tools, var(--surface-raised));
     box-shadow: var(--shadow-nav);
   }
   .note-dock .note-command-scroll { justify-content: safe center; }

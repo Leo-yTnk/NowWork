@@ -71,7 +71,7 @@
   --text-body: 1rem;
   --text-section: 1.125rem;
   --text-title: clamp(2rem, 4.2vw, 3rem);
-  --letter-title: -.055em;
+  --letter-title: -.01em;
   --content-width: 1130px;
   --content-inset: clamp(20px, 4vw, 58px);
   --ease-standard: cubic-bezier(.2, .75, .3, 1);

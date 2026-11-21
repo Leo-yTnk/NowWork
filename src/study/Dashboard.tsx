@@ -13,11 +13,14 @@ import eveningIllustration from '../assets/hero/evening.webp';
 import nightIllustration from '../assets/hero/night.webp';
 
 const heroPeriods = [
-  { start: 19, image: nightIllustration, greeting: 'Boa noite', message: 'Anote o que fica para amanhã e aproveite a noite para descansar.' },
-  { start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde', message: 'Que tal revisar o que aprendeu hoje e organizar o que ainda falta?' },
-  { start: 12, image: afternoonIllustration, greeting: 'Boa tarde', message: 'Escolha uma tarefa e reserve um tempo para avançar com calma.' },
-  { start: 5, image: morningIllustration, greeting: 'Bom dia', message: 'Dê uma olhada na agenda e escolha por onde começar.' },
+  { period: 'night', start: 19, image: nightIllustration, greeting: 'Boa noite', message: 'Anote o que fica para amanhã e aproveite a noite para descansar.' },
+  { period: 'evening', start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde', message: 'Que tal revisar o que aprendeu hoje e organizar o que ainda falta?' },
+  { period: 'afternoon', start: 12, image: afternoonIllustration, greeting: 'Boa tarde', message: 'Escolha uma tarefa e reserve um tempo para avançar com calma.' },
+  { period: 'morning', start: 5, image: morningIllustration, greeting: 'Bom dia', message: 'Dê uma olhada na agenda e escolha por onde começar.' },
 ] as const;
+
+const agendaHref = routeHref({ area: 'planejar', view: 'agenda' });
+const countLabel = (count: number, singular: string, plural: string) => count + ' ' + (count === 1 ? singular : plural);
 
 export function Dashboard({ subject, newSubject, focus, add, openTask }: {
   subject: (id: string, view: SubjectView) => void; newSubject: () => void; focus: () => void;
@@ -45,7 +48,19 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
     if (day) completions.set(day, (completions.get(day) ?? 0) + 1);
   }
   const done = completions.get(today) ?? 0;
-  const todayPending = pending.find((item) => asLocalDate(item.dueAt) === today);
+  const pendingToday = pending.filter((item) => asLocalDate(item.dueAt) === today);
+  const todayPending = pendingToday[0];
+  const plannedMinutes = pendingToday.reduce((total, task) => total + task.minutes, 0);
+  const horizon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+  const upcoming = data.entries
+    .filter((entry) => {
+      if (entry.status !== 'active' || (entry.kind !== 'task' && entry.kind !== 'event') || !entry.dueAt) return false;
+      const day = asLocalDate(entry.dueAt);
+      return day >= today && new Date(entry.dueAt) < horizon;
+    })
+    .sort((a, b) => Date.parse(a.dueAt ?? '') - Date.parse(b.dueAt ?? ''));
+  const subjects = new Map(data.subjects.map(({ id, title }) => [id, title]));
+  const nextSubject = next?.subjectId ? subjects.get(next.subjectId) : undefined;
   const isOverdue = (item: Entry) => {
     const day = asLocalDate(item.dueAt);
     return day && day < today;
@@ -56,18 +71,20 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
   }));
   const largest = Math.max(1, ...week.map(({ completed }) => completed));
   const focusMinutes = week.at(-1)?.focusMinutes ?? 0;
+  const weeklyFocus = week.reduce((total, day) => total + day.focusMinutes, 0);
+  const weeklyDone = week.reduce((total, day) => total + day.completed, 0);
   const shortcuts = subjectShortcuts(data.subjects, data.subjectVisits, now);
   const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
   const recommended = overdue[0] ?? todayPending ?? next;
   const activeFocus = data.focus || data.break;
   const recommendation = activeFocus
     ? (data.focus ? 'Retome sua sessão de foco.' : 'Aproveite sua pausa antes de retomar os estudos.')
-    : overdue.length ? 'Revise o prazo de “' + recommended.title + '” e decida qual passo dá para concluir agora.'
+    : overdue[0] ? 'Revise o prazo de “' + overdue[0].title + '” e decida qual passo dá para concluir agora.'
       : todayPending ? 'Reserve ' + todayPending.minutes + ' min para “' + todayPending.title + '”.'
         : next ? 'Adiante “' + next.title + '” se tiver ' + next.minutes + ' min disponíveis.'
           : data.subjects.length ? 'Aproveite para revisar uma matéria pelos atalhos.' : 'Crie uma matéria para começar a organizar seus estudos.';
   return <div className="nw-stack nw-dashboard">
-    <header className="surface nw-welcome">
+    <header className="surface nw-welcome" data-period={hero.period}>
       <img className="nw-welcome-image" src={hero.image} alt="" fetchPriority="high" decoding="async" />
       <div className="nw-welcome-copy">
         <time className="nw-date" dateTime={today}><CalendarDays size={15} aria-hidden="true" />{date}</time>
@@ -80,30 +97,52 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
         <div className="nw-focus-content">
           <span className="nw-focus-label"><Clock3 size={16} /> Próxima tarefa</span>
           <h2>{next?.title || 'Dia livre de pendências'}</h2>
-          <p>{next ? dueLabel(next.dueAt) + ' · ' + next.minutes + ' min' : 'Crie uma tarefa quando tiver algo para fazer.'}</p>
+          <p>{next ? [nextSubject, isOverdue(next) ? 'Prazo vencido' : dueLabel(next.dueAt), next.minutes + ' min'].filter(Boolean).join(' · ') : 'Crie uma tarefa quando tiver algo para fazer.'}</p>
           <Button icon={<ArrowRight size={16} />} onClick={next ? () => openTask(next.id) : add}>{next ? 'Abrir tarefa' : 'Criar tarefa'}</Button>
         </div>
       </Surface>
       <Surface className="today-checklist">
         <h2 className="nw-small-heading"><ListTodo size={18} /> Próximas tarefas</h2>
+        {!!pendingToday.length && <p className="today-plan-total nw-muted">{countLabel(pendingToday.length, 'prazo hoje', 'prazos hoje')} · {plannedMinutes} min estimados</p>}
         {pending.length ? <ul>{pending.slice(0, 4).map((item) => <li key={item.id}>
           <input type="checkbox" aria-label={'Concluir ' + item.title} checked={false} onChange={() => completeEntry(item.id)} />
-          <button type="button" onClick={() => openTask(item.id)}>{item.title}<small>{dueLabel(item.dueAt)}</small></button>
+          <button type="button" onClick={() => openTask(item.id)}>{item.title}<small>{isOverdue(item) ? 'Prazo vencido' : dueLabel(item.dueAt)}</small></button>
         </li>)}</ul> : <p className="nw-muted">Suas próximas tarefas aparecem aqui.</p>}
       </Surface>
       {[
-        { label: 'Tarefas no dia', Icon: CalendarDays, tone: 'violet', value: todayTasks.length },
+        { label: 'Prazos de hoje', Icon: CalendarDays, tone: 'violet', value: todayTasks.length },
         { label: 'Concluídas no dia', Icon: CheckCircle2, tone: 'mint', value: done },
       ].map(({ label, Icon, tone, value }) => <Surface key={label} className="nw-stat today-stat">
         <span className={'nw-stat-icon tone-' + tone}><Icon size={18} /></span><div><strong>{value}</strong><span>{label}</span></div>
       </Surface>)}
     </div>
 
+    <section className="nw-stack" aria-labelledby="today-agenda">
+      <div className="nw-section-heading"><h2 id="today-agenda"><CalendarDays size={19} /> Próximos 7 dias</h2>
+        <a className="subject-directory-link" href={agendaHref}>Abrir agenda <ArrowRight size={15} /></a>
+      </div>
+      <Surface className="today-agenda">
+        {upcoming.length ? <ul>{upcoming.slice(0, 5).map((entry) => {
+          const Icon = entry.kind === 'event' ? CalendarDays : ListTodo;
+          const subjectTitle = entry.subjectId ? subjects.get(entry.subjectId) : undefined;
+          const detail = entry.kind === 'event' ? 'Compromisso' : 'Tarefa';
+          return <li key={entry.id}>
+            <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })}>
+              <Icon size={17} aria-hidden="true" />
+              <span><strong>{entry.title}</strong><small>{[detail, subjectTitle].filter(Boolean).join(' · ')}</small></span>
+              <time dateTime={entry.dueAt ?? undefined}>{dueLabel(entry.dueAt)}</time>
+            </a>
+          </li>;
+        })}</ul> : <p className="nw-muted">Nenhum prazo ou compromisso cadastrado para os próximos 7 dias.</p>}
+        {upcoming.length > 5 && <p className="nw-muted">{countLabel(upcoming.length - 5, 'item a mais na agenda', 'itens a mais na agenda')}</p>}
+      </Surface>
+    </section>
+
     <section className="nw-stack" aria-labelledby="today-dashboard">
-      <div className="nw-section-heading"><h2 id="today-dashboard"><BarChart3 size={19} /> Dashboard</h2></div>
+      <div className="nw-section-heading"><h2 id="today-dashboard"><BarChart3 size={19} /> Progresso</h2></div>
       <div className="today-insights">
         <Surface className="today-activity">
-          <div className="nw-section-heading"><h3 className="nw-small-heading">Entregas na semana</h3><span className="nw-muted">Últimos 7 dias</span></div>
+          <div className="nw-section-heading"><h3 className="nw-small-heading">Tarefas concluídas</h3><span className="nw-muted">Últimos 7 dias</span></div>
           <div className="today-chart" role="list" aria-label="Tarefas concluídas nos últimos sete dias">
             {week.map(({ key, label, completed }) => <div key={key} role="listitem" aria-label={new Date(key).toLocaleDateString('pt-BR') + ', ' + completed + ' concluídas'}>
               <strong aria-hidden="true">{completed}</strong>
@@ -111,7 +150,10 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
               <span aria-hidden="true">{label}</span>
             </div>)}
           </div>
-          <div className="today-focus nw-muted"><Clock3 size={15} /> {focusMinutes} min de foco hoje</div>
+          <div className="today-activity-totals nw-muted">
+            <span><CheckCircle2 size={15} /> {countLabel(weeklyDone, 'tarefa em 7 dias', 'tarefas em 7 dias')}</span>
+            <span><Clock3 size={15} /> {weeklyFocus} min de foco em 7 dias · {focusMinutes} hoje</span>
+          </div>
         </Surface>
         <Surface className={'today-advice' + (overdue.length ? ' today-alert' : '')}>
           <span>{overdue.length ? <TriangleAlert size={18} /> : <Sparkles size={18} />}</span>

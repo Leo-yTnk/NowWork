@@ -18,7 +18,7 @@
 .btn-danger { background: var(--danger-soft); color: var(--danger); }
 .btn-danger:hover:not(:disabled) { filter: brightness(.97); }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 0 -7px; }
-.section-heading h2 { margin: 0; font-size: 18px; letter-spacing: -.045em; }
+.section-heading h2 { margin: 0; font-size: 18px; letter-spacing: var(--letter-title); }
 .kind-pill,.demo-pill,.status-label { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 5px 9px; font-weight: 650; border-radius: 100px; background: var(--surface-soft); color: var(--secondary); }
 .kind-teal { color: var(--accent); background: var(--accent-soft); }
 .kind-amber { color: var(--amber); background: var(--amber-soft); }
