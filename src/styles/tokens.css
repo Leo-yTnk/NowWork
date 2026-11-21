@@ -10,6 +10,10 @@
   -webkit-font-smoothing: antialiased;
   --page: #e9e7e3;
   --canvas: #eeece9;
+  --editor-canvas: #fbfaf7;
+  --editor-rail: #eeebe6;
+  --editor-toolbar: #f5f2ed;
+  --editor-divider: #d5cfc6;
   --rail: #e7e5e1;
   --surface: #f3f1ee;
   --surface-soft: #e8e6e2;
@@ -66,6 +70,10 @@
   --space-12: 48px;
   --space-16: 64px;
   --control-height: 42px;
+  --creation-button-width: 144px;
+  --popup-fill: color-mix(in srgb, var(--surface-raised) 85%, transparent);
+  --popup-blur: blur(14px) saturate(125%);
+  --popup-divider: color-mix(in srgb, var(--ink) 10%, transparent);
   --text-caption: .75rem;
   --text-control: .875rem;
   --text-body: 1rem;
@@ -81,6 +89,10 @@
   color-scheme: dark;
   --page: #191817;
   --canvas: #1c1b1a;
+  --editor-canvas: var(--canvas);
+  --editor-rail: var(--rail);
+  --editor-toolbar: var(--surface-soft);
+  --editor-divider: var(--line);
   --rail: #1f1e1d;
   --surface: #232221;
   --surface-soft: #272624;

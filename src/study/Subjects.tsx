@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ArrowRight, LibraryBig, Plus, Search } from 'lucide-react';
-import { Button, EmptyState, PageHeading, Stack, Surface } from '../components/ui';
+import { ArrowRight, LibraryBig, Search } from 'lucide-react';
+import { Button, CreateButton, EmptyState, PageHeading, Stack, Surface } from '../components/ui';
 import { useApp } from '../state/AppState';
 import { getSubjectIcon, subjectTone } from '../lib/subjectAppearance';
 import type { Subject } from '../types';
@@ -59,7 +59,7 @@ export function Subjects({ open, create }: { open: (id: string) => void; create:
   const { subjects, filtered, query, setQuery } = useSubjectFilter();
   return <Stack className="workspace-page">
     <PageHeading title="Matérias" description="Abra uma matéria para consultar seu caderno, tarefas e revisões."
-      action={<Button variant="primary" icon={<Plus size={17} />} onClick={create}>Nova matéria</Button>} />
+      action={<CreateButton onClick={create}>Nova matéria</CreateButton>} />
     {!!subjects.length && <SubjectFilter query={query} change={setQuery} />}
     {filtered.length ? <div className="subject-grid">{filtered.map((subject) =>
       <SubjectCard key={subject.id} subject={subject} open={() => open(subject.id)} />

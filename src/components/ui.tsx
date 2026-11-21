@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
-import { ArrowUpRight, Inbox } from 'lucide-react';
+import { ArrowUpRight, Inbox, Plus } from 'lucide-react';
 
 type ButtonProps = Omit<ComponentPropsWithoutRef<typeof motion.button>, 'children' | 'size'> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -21,6 +21,10 @@ export function Button({ variant = 'secondary', size = 'md', icon, children, cla
     className={'btn btn-' + variant + ' btn-' + size + ' ' + className}>
     {icon}{children}
   </motion.button>;
+}
+
+export function CreateButton(props: Omit<ButtonProps, 'variant' | 'icon' | 'size'>) {
+  return <Button {...props} variant="primary" icon={<Plus size={16} />} className={'btn-create ' + (props.className ?? '')} />;
 }
 
 export function Surface({ children, className = '', layout = false }: { children: ReactNode; className?: string; layout?: boolean }) {

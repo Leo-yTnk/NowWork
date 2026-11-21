@@ -13,10 +13,10 @@ import eveningIllustration from '../assets/hero/evening.webp';
 import nightIllustration from '../assets/hero/night.webp';
 
 const heroPeriods = [
-  { period: 'night', start: 19, image: nightIllustration, greeting: 'Boa noite', message: 'Anote o que fica para amanhã e aproveite a noite para descansar.' },
-  { period: 'evening', start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde', message: 'Que tal revisar o que aprendeu hoje e organizar o que ainda falta?' },
-  { period: 'afternoon', start: 12, image: afternoonIllustration, greeting: 'Boa tarde', message: 'Escolha uma tarefa e reserve um tempo para avançar com calma.' },
-  { period: 'morning', start: 5, image: morningIllustration, greeting: 'Bom dia', message: 'Dê uma olhada na agenda e escolha por onde começar.' },
+  { start: 19, image: nightIllustration, greeting: 'Boa noite', message: 'Anote o que fica para amanhã e aproveite a noite para descansar.' },
+  { start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde', message: 'Que tal revisar o que aprendeu hoje e organizar o que ainda falta?' },
+  { start: 12, image: afternoonIllustration, greeting: 'Boa tarde', message: 'Escolha uma tarefa e reserve um tempo para avançar com calma.' },
+  { start: 5, image: morningIllustration, greeting: 'Bom dia', message: 'Dê uma olhada na agenda e escolha por onde começar.' },
 ] as const;
 
 const agendaHref = routeHref({ area: 'planejar', view: 'agenda' });
@@ -84,7 +84,7 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
         : next ? 'Adiante “' + next.title + '” se tiver ' + next.minutes + ' min disponíveis.'
           : data.subjects.length ? 'Aproveite para revisar uma matéria pelos atalhos.' : 'Crie uma matéria para começar a organizar seus estudos.';
   return <div className="nw-stack nw-dashboard">
-    <header className="surface nw-welcome" data-period={hero.period}>
+    <header className="surface nw-welcome">
       <img className="nw-welcome-image" src={hero.image} alt="" fetchPriority="high" decoding="async" />
       <div className="nw-welcome-copy">
         <time className="nw-date" dateTime={today}><CalendarDays size={15} aria-hidden="true" />{date}</time>

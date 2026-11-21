@@ -14,21 +14,16 @@
 .nw-dashboard { gap:24px; }
 .nw-welcome {
   --surface-fill: #242a38;
-  --hero-trim: #7d6d5e;
-  --card-edge: color-mix(in srgb, var(--hero-trim) 65%, var(--surface-fill));
-  --card-stitch: color-mix(in srgb, var(--hero-trim) 55%, transparent);
   --hero-overlay: linear-gradient(90deg, rgb(12 17 28 / 90%), rgb(12 17 28 / 74%) 44%, rgb(12 17 28 / 10%) 83%);
   display: grid;
   align-items: center;
   isolation: isolate;
+  background-clip: padding-box;
   min-height: clamp(240px, 30vw, 336px);
   overflow: hidden;
   padding: clamp(22px, 5vw, 56px);
   color: #fff;
 }
-.nw-welcome[data-period='afternoon'] { --hero-trim: #62747a; }
-.nw-welcome[data-period='evening'] { --hero-trim: #886b69; }
-.nw-welcome[data-period='night'] { --hero-trim: #606b8a; }
 .nw-welcome > .nw-welcome-image {
   position: absolute;
   inset: 0;
@@ -87,15 +82,14 @@
 .nw-days i.has-items { background:currentColor; }
 .nw-day-head { display:flex; justify-content:space-between; align-items:center; gap:8px; border-top:1px solid var(--line); font-size:12px;  }
 .nw-no-date { display:flex; align-items:center; gap:8px; margin:1px 0 0; color:var(--secondary); font-size:12px; }
-.nw-card-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-.nw-card-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.nw-card-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
 .nw-next,.nw-list-card { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; --surface-radius:var(--radius-md); }
 .nw-next > div,.nw-list-card > div { display:grid; gap:3px; min-width:0; overflow-wrap:anywhere; }
 .nw-list-card > div { flex:1; white-space:pre-wrap; }
 .nw-next strong,.nw-list-card strong { font-size:14px; }
 .nw-wrap { flex-wrap:wrap; }
 .nw-filters { color:var(--secondary); }
-.nw-filters select { border:1px solid var(--control-border); border-radius:var(--radius-xs); color:var(--ink); background:var(--surface); padding:7px; font-size:12px; max-width:100%; }
+.nw-filters .ds-select { width: auto; max-width: 100%; }
 .nw-task { display:flex; gap:9px; align-items:flex-start; }
 .nw-task .entry-card { flex:1; min-width:0; overflow-wrap:anywhere; }
 .nw-check { width:29px; height:29px; border:1px solid var(--control-border); border-radius:50%; color:var(--accent); display:grid; place-items:center; background:var(--surface); margin-top:22px; flex:none; }
