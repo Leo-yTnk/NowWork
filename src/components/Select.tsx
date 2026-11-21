@@ -22,7 +22,7 @@ export function Select<T extends string | number>({ label, value, options, onCha
     <Primitive.Portal>
       <Primitive.Content className="ds-select-content" style={{ '--ds-select-rows': options.length } as CSSProperties} position="popper" align="start" sideOffset={6} collisionPadding={8}
         onCloseAutoFocus={(event) => { if (!returnFocus && selected.current) event.preventDefault(); }}>
-        <div className="ds-select-frame"><Primitive.Viewport className="ds-select-options">
+        <div className="ds-select-frame ds-popup"><Primitive.Viewport className="ds-select-options">
           {options.map(([key, name]) => <Primitive.Item key={key} value={String(key) || 'ds-empty'} className="ds-select-option">
             <Primitive.ItemText>{name}</Primitive.ItemText>
             <Primitive.ItemIndicator><Check size={15} aria-hidden="true" /></Primitive.ItemIndicator>

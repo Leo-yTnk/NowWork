@@ -6,6 +6,7 @@ import { dueDays } from '../lib/engine';
 import { KINDS, type EntryKind } from '../types';
 import { Button, EmptyState, SectionHeader, Surface } from '../components/ui';
 import { EntryFields, freshInput } from '../components/EntryFields';
+import { Select } from '../components/Select';
 import { EntryCard } from '../components/EntryCard';
 
 type Filter = 'active' | 'all' | 'task' | 'event' | 'worry' | 'idea' | 'done' | 'archived';
@@ -79,11 +80,9 @@ export function Mente({ selectedId }: { selectedId?: string }) {
     <div className="list-tools">
       <div><SectionHeader label="Seus registros" />{expiring > 0 && <p className="list-alert">{expiring} registro{expiring > 1 ? 's' : ''} com prazo próximo ou vencido</p>}</div>
       <div className="list-controls"><label className="search-control"><Search size={15}/><input aria-label="Pesquisar registros" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..."/></label>
-      <select className="filter-select" aria-label="Filtrar registros" value={filter} onChange={(e) => {setFilter(e.target.value as Filter);setLimit(12);}}>
-        <option value="active">Em aberto</option><option value="all">Todos</option>
-        {Object.entries(KINDS).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
-        <option value="done">Concluídos</option><option value="archived">Arquivados</option>
-      </select></div>
+      <Select label="Filtrar registros" value={filter} onChange={(value) => { setFilter(value); setLimit(12); }}
+        options={[[ 'active', 'Em aberto'], ['all', 'Todos'], ...Object.entries(KINDS) as [EntryKind, string][],
+          ['done', 'Concluídos'], ['archived', 'Arquivados']]} /></div>
     </div>
     <div className="record-list">
       {entries.length ? entries.slice(0,limit).map((entry) => <EntryCard key={entry.id} entry={entry} initiallyExpanded={entry.id === selectedId}/>) :

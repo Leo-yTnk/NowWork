@@ -49,13 +49,7 @@ html:has(.nw-shell[data-notebook-page]) {
   .document-layout { --note-sidebar-motion: 0ms; }
 }
 .document-layout[data-pages-open='true'] { grid-template-columns: var(--note-sidebar-width) minmax(0, 1fr); }
-.document-writing-area { min-width: 0; background: var(--note-canvas, transparent); }
-:root:not([data-theme='dark']) .document-layout {
-  --note-canvas: #fbfaf7;
-  --note-chrome: #eeebe6;
-  --note-tools: #f5f2ed;
-  --note-divider: #d5cfc6;
-}
+.document-writing-area { min-width: 0; background: var(--editor-canvas); }
 :root:not([data-theme='dark']) .document-content .tiptap > :is(h1, h2, h3, h4, h5, h6):not(:first-child) {
   margin-block-start: 1.35em;
 }
@@ -83,8 +77,8 @@ html:has(.nw-shell[data-notebook-page]) {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-3);
-  border-inline-end: 1px solid var(--note-divider, var(--line));
-  background: var(--note-chrome, var(--rail));
+  border-inline-end: 1px solid var(--editor-divider);
+  background: var(--editor-rail);
 }
 .document-sidebar-heading {
   display: flex;
@@ -117,7 +111,6 @@ html:has(.nw-shell[data-notebook-page]) {
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-.document-sidebar-index { margin-bottom: var(--space-2); }
 .document-sidebar a > svg { flex: none; }
 .document-sidebar a:hover { background: var(--surface); }
 .document-sidebar a[aria-current='page'] {
@@ -249,8 +242,8 @@ html:has(.nw-shell[data-notebook-page]) {
   align-items: center;
   min-height: 48px;
   padding: var(--space-2) max(var(--space-3), calc((100% - var(--content-width)) / 2));
-  background: var(--note-tools, var(--surface-soft));
-  border-block-end: 1px solid var(--note-divider, var(--line));
+  background: var(--editor-toolbar);
+  border-block-end: 1px solid var(--editor-divider);
 }
 .note-command-scroll {
   display: flex;
@@ -292,11 +285,10 @@ html:has(.nw-shell[data-notebook-page]) {
 }
 .note-ribbon-clipboard .note-ribbon-paste:hover:not(:disabled) { background: var(--accent-soft); }
 .note-ribbon-font, .note-ribbon-paragraph { display: grid; grid-template-rows: repeat(2, minmax(38px, 1fr)); gap: var(--space-1); }
-.note-ribbon-font { width: 440px; }
-.note-ribbon-paragraph { width: 184px; }
+.note-ribbon-font { width: 480px; }
 .note-ribbon-font > div, .note-ribbon-paragraph > div { display: grid; gap: var(--space-1); }
 .note-ribbon-font-selects { grid-template-columns: minmax(0, 29fr) minmax(0, 34fr) minmax(0, 25fr) minmax(0, 12fr); align-items: center; }
-.note-ribbon-font-selects .ds-select { padding-inline: 6px; gap: 2px; font-size: var(--text-caption); }
+.note-ribbon-font-selects .ds-select, .note-ribbon-font-selects .note-size-input { padding-inline: var(--space-3); font-size: var(--text-caption); }
 .note-ribbon-font-selects .ds-select > svg { width: 11px; }
 .note-size-input {
   min-width: 0;
@@ -307,6 +299,8 @@ html:has(.nw-shell[data-notebook-page]) {
 .note-tool-row .note-size-input { width: 66px; }
 .note-size-input[data-mixed='true']::placeholder { color: var(--ink); }
 .note-controls button[aria-pressed='mixed'] { color: var(--accent); background: var(--accent-soft); }
+.note-ribbon-end, .note-reorder-actions { display: flex; align-items: center; gap: 2px; }
+.note-ribbon-end .note-reorder-actions { flex-direction: column; margin-inline-start: var(--space-1); }
 .note-ribbon-insertion { display: grid; align-content: center; }
 .note-insert-actions { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); align-items: center; gap: 2px; }
 .note-simple-insertion {
@@ -326,7 +320,8 @@ html:has(.nw-shell[data-notebook-page]) {
   grid-template-columns: repeat(9, minmax(0, 1fr));
   gap: 2px;
 }
-.note-ribbon-paragraph > div { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.note-ribbon-paragraph > div { display: flex; align-items: center; gap: 2px; }
+.note-ribbon-paragraph .ds-select { width: 98px; font-size: var(--text-caption); }
 .note-ribbon-scroll button:focus-visible, .note-ribbon-scroll:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -438,9 +433,9 @@ html:has(.nw-shell[data-notebook-page]) {
   .note-dock .note-command-bar {
     justify-content: center;
     padding: var(--space-1);
-    border: 1px solid var(--note-divider, var(--line));
+    border: 1px solid var(--editor-divider);
     border-radius: var(--radius-md);
-    background: var(--note-tools, var(--surface-raised));
+    background: var(--editor-toolbar);
     box-shadow: var(--shadow-nav);
   }
   .note-dock .note-command-scroll { justify-content: safe center; }

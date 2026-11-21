@@ -65,9 +65,9 @@ function ToolGroups({ groups }: { groups: ToolGroup[] }) {
   </div>;
 }
 
-export function NotebookToolbar({ simple, ribbon, insertion, supplemental, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
+export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, supplemental, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
   simple: { history: ReactNode; text: ReactNode; lists: ReactNode; insertIcon: ReactNode };
-  ribbon: ReactNode; insertion: ReactNode; supplemental: ToolGroup[]; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
+  ribbon: ReactNode; insertion: ReactNode; reorderActions: ReactNode; supplemental: ToolGroup[]; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
   dismissKeyboard: () => void; clearExtra: () => void;
 }) {
   const [simpleCategory, setSimpleCategory] = useState('format');
@@ -152,11 +152,12 @@ export function NotebookToolbar({ simple, ribbon, insertion, supplemental, categ
     <div className={'note-command-bar' + (advanced ? ' note-command-advanced' : '')} role="group" aria-label="Ferramentas do caderno">
       {advanced ? <div className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada rolável">
         <div className="note-history-group" role="group" aria-label="Histórico">{simple.history}</div>
-        {ribbon}{insertion}
+        {ribbon}
+        <div className="note-ribbon-end">{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
         <div className="note-ribbon-extra" role="group" aria-label="Mais ferramentas">
           {more}{context && categoryButton(context)}
         </div>
-      </div> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}</div>
+      </div> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
       : <div className="note-command-scroll">
         <div className="note-command-group">{simple.history}</div>
         {compact ? <div className="note-command-group">
@@ -167,7 +168,7 @@ export function NotebookToolbar({ simple, ribbon, insertion, supplemental, categ
           <div className="note-command-group">{simple.text}</div>
           <div className="note-command-group">{simple.lists}</div>
         </>}
-        <div className="note-command-group">{insert}{more}{context &&
+        <div className="note-command-group">{insert}{reorderActions}{more}{context &&
           <IconButton label={context.label} aria-expanded={panel === 'context' && open} onMouseDown={(event) => event.preventDefault()}
             onClick={(event) => togglePanel('context', event.currentTarget)}>{context.icon}</IconButton>}
         </div>

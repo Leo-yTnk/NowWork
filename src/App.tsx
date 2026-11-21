@@ -4,7 +4,7 @@ import { ArrowLeft, Check, CircleHelp, Coffee, Download, Pencil, ShieldCheck, Sp
 import { AppProvider, useApp } from './state/AppState';
 import { ElasticSheet } from './components/ElasticSheet';
 import { Button, IconButton, PageHeading, Stack } from './components/ui';
-import { SectionNavigation, WorkspaceNavigation } from './components/WorkspaceNavigation';
+import { SectionContent, SectionNavigation, WorkspaceNavigation } from './components/WorkspaceNavigation';
 import { areas, parseRoute, planningViews, routeHref, studyViews, subjectViews, type Route, type SubjectView } from './lib/navigation';
 import { Agora } from './tabs/Agora';
 import { Mente } from './tabs/Mente';
@@ -184,9 +184,11 @@ function AppContent() {
                 <SectionNavigation label="Nesta matéria" links={subjectViews.map(({ id, label }) => ({ label, active: route.view === id,
                   href: routeHref({ area: 'materias', subjectId: subject.id, view: id }) }))} />
               </div>
-              {route.view === 'tarefas' && <Tasks key={subject.id} subjectId={subject.id} onAdd={() => newTask()} />}
-              {route.view === 'caderno' && <Notebook key={subject.id} subjectId={subject.id} open={(id) => subjectPage(subject.id, 'caderno', id)} />}
-              {route.view === 'revisao' && <Review key={subject.id} subjectId={subject.id} />}
+              <SectionContent activeIndex={subjectViews.findIndex(({ id }) => id === route.view)}>
+                {route.view === 'tarefas' && <Tasks subjectId={subject.id} onAdd={() => newTask()} />}
+                {route.view === 'caderno' && <Notebook subjectId={subject.id} open={(id) => subjectPage(subject.id, 'caderno', id)} />}
+                {route.view === 'revisao' && <Review subjectId={subject.id} />}
+              </SectionContent>
             </Stack>)}
         {route.area === 'planejar' && <Stack className="workspace-page">
           <div className="workspace-page-heading">
@@ -194,9 +196,11 @@ function AppContent() {
             <SectionNavigation label="Planejamento" links={planningViews.map(({ id, label }) =>
               ({ label, active: route.view === id, href: routeHref({ area: 'planejar', view: id }) }))} />
           </div>
-          {route.view === 'tarefas' && <Tasks key={route.entryId || 'all'} onlyId={route.entryId} onAdd={() => newTask()} />}
-          {route.view === 'agenda' && <Week onAdd={newTask} />}
-          {route.view === 'entrada' && <Mente key={route.entryId || 'all'} selectedId={route.entryId} />}
+          <SectionContent activeIndex={planningViews.findIndex(({ id }) => id === route.view)}>
+            {route.view === 'tarefas' && <Tasks key={route.entryId || 'all'} onlyId={route.entryId} onAdd={() => newTask()} />}
+            {route.view === 'agenda' && <Week onAdd={newTask} />}
+            {route.view === 'entrada' && <Mente key={route.entryId || 'all'} selectedId={route.entryId} />}
+          </SectionContent>
         </Stack>}
         {route.area === 'estudar' && <Stack className="workspace-page">
           <div className="workspace-page-heading">
@@ -204,7 +208,9 @@ function AppContent() {
             <SectionNavigation label="Estudo" links={studyViews.map(({ id, label }) =>
               ({ label, active: route.view === id, href: routeHref({ area: 'estudar', view: id }) }))} />
           </div>
-          {route.view === 'foco' ? <Agora onMind={() => open({ area: 'planejar', view: 'entrada' })} onBreak={() => setSheet({ kind: 'break' })} /> : <Evolucao />}
+          <SectionContent activeIndex={studyViews.findIndex(({ id }) => id === route.view)}>
+            {route.view === 'foco' ? <Agora onMind={() => open({ area: 'planejar', view: 'entrada' })} onBreak={() => setSheet({ kind: 'break' })} /> : <Evolucao />}
+          </SectionContent>
         </Stack>}
       </motion.div>
     </main>

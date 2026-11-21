@@ -150,7 +150,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
   const lists: EditorAction[] = [
     { label: 'Lista com marcadores', icon: <List size={18} />, pressed: tools.bullet, run: () => focus().toggleBulletList().run() },
     { label: 'Lista numerada', icon: <ListOrdered size={18} />, pressed: tools.ordered, run: () => focus().toggleOrderedList().run() },
-    { label: 'Checklist', icon: <ListChecks size={18} />, pressed: tools.task, run: () => focus().toggleTaskList().run() },
+    { label: 'Lista de tarefas', icon: <ListChecks size={18} />, pressed: tools.task, run: () => focus().toggleTaskList().run() },
   ];
   const quote: EditorAction = { label: 'Citação', icon: <Quote size={18} />, pressed: tools.quote, run: () => { closeTools(); focus().toggleBlockquote().run(); } };
   const code: EditorAction = { label: 'Bloco de código', icon: <Code2 size={18} />, pressed: tools.code, run: () => { closeTools(); focus().toggleCodeBlock().run(); } };
@@ -306,7 +306,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       const view = root instanceof Element ? root.matches('[data-node-view-wrapper]') ? root : root.querySelector('[data-node-view-wrapper]') : null;
       view?.dispatchEvent(new Event(editDocumentBlock));
     } };
-  const lineHeight = <Options label="Entrelinhas" value={tools.textStyle.lineHeight ?? ''}
+  const lineHeight = <Select label="Altura da linha" returnFocus={false} value={tools.textStyle.lineHeight ?? ''}
     options={[[ '', 'Padrão'], ['1', 'Simples'], ['1.25', '1,25'], ['1.5', '1,5'], ['2', 'Duplo']]}
     onChange={(value) => (value ? focus().setLineHeight(value) : focus().unsetLineHeight()).run()} />;
   const pageWidth = <Options label="Largura do conteúdo" value={tools.pageWidth}
@@ -338,16 +338,13 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       <p>Também aceita <code>MÍNIMO</code>, <code>MÁXIMO</code>, <code>CONT.NÚM</code>, parênteses e porcentagens.</p>
     </div>] },
   ]
-    : contextualBlock ? [{ label: 'Elemento selecionado', rows: [group([propertyAction, ...blocks.slice(2)])] }] : [];
-  const supplemental: ToolGroup[] = [
-    { label: 'Formatação', rows: [group([lists[2]]), lineHeight] },
-    { label: 'Página e blocos', rows: [pageWidth, group(blocks.slice(2))] },
-  ];
+    : contextualBlock ? [{ label: 'Elemento selecionado', rows: [group([propertyAction])] }] : [];
+  const supplemental: ToolGroup[] = [{ label: 'Página', rows: [pageWidth] }];
   const textActions = [...marks, ...colorActions, clear];
   const categories: ToolCategory[] = [
     { id: 'format', label: 'Texto', icon: <Type size={19} />, groups: [
       { label: 'Estilo e fonte', rows: [<>{styleControl}{fontSelect}{weightField}{sizeInput}</>, group(textActions)] },
-      { label: 'Listas e parágrafo', rows: [group(lists), group([...align, ...blocks.slice(0, 2)])] },
+      { label: 'Listas e parágrafo', rows: [group(lists), <>{group(align)}{lineHeight}</>, group(blocks.slice(0, 2))] },
       ...supplemental,
       { label: 'Área de transferência', rows: [group(clipboard)] },
     ] },
@@ -366,8 +363,8 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       <div className="note-ribbon-marks">{group(textActions)}</div>
     </div>
     <div className="note-ribbon-paragraph" role="group" aria-label="Parágrafo">
-      <div>{group(align)}</div>
-      <div>{group([...lists.slice(0, 2), ...blocks.slice(0, 2)])}</div>
+      <div>{group(align)}{lineHeight}</div>
+      <div>{group([...lists, ...blocks.slice(0, 2)])}</div>
     </div>
   </>;
   const title = popover === 'ink' ? 'Cor do texto' : 'Cor de fundo';
@@ -404,7 +401,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       } catch (error) { notify(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.'); }
     }} />
     <NotebookToolbar simple={{ history: group(history), text: <>{styleControl}{weightField}{group(marks.slice(0, 3))}</>,
-      lists: group(lists), insertIcon: <Plus size={21} /> }} ribbon={ribbon} insertion={insertion} supplemental={supplemental} categories={categories} panel={toolPanel} setPanel={setToolPanel} extra={extra} mobile={mobile}
+      lists: group(lists), insertIcon: <Plus size={21} /> }} ribbon={ribbon} insertion={insertion} reorderActions={group(blocks.slice(2))} supplemental={supplemental} categories={categories} panel={toolPanel} setPanel={setToolPanel} extra={extra} mobile={mobile}
       clearExtra={() => { setPopover(null); setLink(null); }}
       dismissKeyboard={() => {
         const active = document.activeElement;

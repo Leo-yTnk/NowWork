@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Ellipsis, House, LibraryBig, PanelLeftClose, PanelLeftOpen, Search, Settings2, Timer } from 'lucide-react';
 import { areas, routeHref, type Area } from '../lib/navigation';
 import { springs } from '../lib/motion';
@@ -51,12 +51,51 @@ function useHistoryControls() {
   return history;
 }
 
+function NavigationIndicator({ activeKey, className }: { activeKey?: string; className: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [bounds, setBounds] = useState<{ x: number; y: number; width: number }>();
+  const reduced = useReducedMotion();
+  const { data } = useApp();
+
+  useLayoutEffect(() => {
+    const nav = ref.current?.parentElement;
+    const active = nav?.querySelector<HTMLElement>('a[aria-current="page"]');
+    if (!nav || !active) { setBounds(undefined); return; }
+    const measure = () => {
+      const { offsetLeft: x, offsetTop: y, offsetWidth: width } = active;
+      setBounds((last) => last?.x === x && last.y === y && last.width === width ? last : { x, y, width });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    nav.querySelectorAll('a').forEach((link) => observer.observe(link));
+    return () => observer.disconnect();
+  }, [activeKey]);
+
+  return <span ref={ref} className="workspace-indicator-slot" aria-hidden="true">
+    {bounds && <motion.span className={className} initial={false} animate={bounds}
+      transition={reduced || data.profile.reducedMotion ? { duration: 0 } : springs.layout} />}
+  </span>;
+}
+
+export function SectionContent({ activeIndex, children }: { activeIndex: number; children: ReactNode }) {
+  const previous = useRef(activeIndex);
+  const reduced = useReducedMotion();
+  const { data } = useApp();
+  const direction = Math.sign(activeIndex - previous.current);
+  useLayoutEffect(() => { previous.current = activeIndex; }, [activeIndex]);
+  const animate = direction !== 0 && !reduced && !data.profile.reducedMotion;
+
+  return <motion.div key={activeIndex} initial={animate ? { opacity: .55, x: direction * 10, filter: 'blur(2px)' } : false}
+    animate={{ opacity: 1, x: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+    transition={reduced || data.profile.reducedMotion ? { duration: 0 } : { duration: .22, ease: [.2, .75, .3, 1], filter: { duration: .15 } }}>
+    {children}
+  </motion.div>;
+}
+
 export function WorkspaceNavigation({ current, search, settings, notebook }: {
   current: Area; search: () => void; settings: () => void; notebook?: NotebookNavigation;
 }) {
-  const reduced = useReducedMotion();
-  const { data } = useApp();
-  const animate = !reduced && !data.profile.reducedMotion;
   const history = useHistoryControls();
   return <header className="workspace-header">
     <div className="workspace-header-inner">
@@ -75,10 +114,9 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
         <IconButton label="Avançar" disabled={!history.forward} onClick={() => window.history.forward()}><ArrowRight size={18} /></IconButton>
       </Toolbar>
       <nav className="workspace-primary" aria-label="Navegação principal">
+        <NavigationIndicator className="workspace-current" activeKey={current} />
         {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-current={current === area ? 'page' : undefined}>
-          {current === area && <motion.span className="workspace-current" aria-hidden="true" layoutId={animate ? 'workspace-current' : undefined}
-            transition={springs.panel} />}
-          <Icon size={18} aria-hidden="true" /><span>{title}</span>
+          <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
         </a>)}
       </nav>
       <Toolbar label="Atalhos do NowWork" className="workspace-actions">
@@ -91,13 +129,10 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
 }
 
 export function SectionNavigation({ label, links }: { label: string; links: readonly { label: string; href: string; active: boolean }[] }) {
-  const reduced = useReducedMotion();
-  const { data } = useApp();
-  const animate = !reduced && !data.profile.reducedMotion;
   return <nav className="workspace-sections" aria-label={label}>
+    <NavigationIndicator className="workspace-section-indicator" activeKey={links.find((link) => link.active)?.href} />
     {links.map(({ label, href, active }) => <a key={href} href={href} aria-current={active ? 'page' : undefined}>
-      {label}{active && <motion.span aria-hidden="true" className="workspace-section-indicator" layoutId={animate ? 'workspace-section' : undefined}
-        transition={springs.panel} />}
+      <span className="workspace-tab-label" data-label={label}><span>{label}</span></span>
     </a>)}
   </nav>;
 }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowDownUp, CalendarDays, Check, ChevronLeft, ChevronRight, ListTodo, Plus } from 'lucide-react';
+import { Select } from '../components/Select';
 import { EntryCard } from '../components/EntryCard';
-import { Button, EmptyState, IconButton, Segment, Surface } from '../components/ui';
+import { CreateButton, EmptyState, IconButton, Segment, Surface } from '../components/ui';
 import { asLocalDate, dateToDeadline } from '../lib/engine';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
@@ -40,17 +41,14 @@ export function Tasks({ subjectId, onAdd, onlyId }: { subjectId?: string; onAdd:
     <div className="nw-section-heading nw-wrap">
       <Segment label="Estado das tarefas" value={status} onChange={setStatus}
         options={(['active', 'done', 'archived'] as const).map((id) => ({ id, label: <>{statusNames[id]} <span>{entries.filter((entry) => entry.status === id).length}</span></> }))} />
-      <Button size="sm" variant="primary" icon={<Plus size={16} />} onClick={onAdd}>Nova tarefa</Button>
+      <CreateButton onClick={onAdd}>Nova tarefa</CreateButton>
     </div>
     <div className="nw-toolbar nw-filters">
-      {!subjectId && <select aria-label="Filtrar tarefas por matéria" value={filter} onChange={(event) => setFilter(event.target.value)}>
-        <option value="">Todas as matérias</option><option value="none">Sem matéria</option>
-        {app.data.subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.title}</option>)}
-      </select>}
+      {!subjectId && <Select label="Filtrar tarefas por matéria" value={filter} onChange={setFilter}
+        options={[[ '', 'Todas as matérias'], ['none', 'Sem matéria'], ...app.data.subjects.map(({ id, title }) => [id, title] as const)]} />}
       <ArrowDownUp size={15} aria-hidden="true" />
-      <select aria-label="Ordenar tarefas" value={sort} onChange={(event) => setSort(event.target.value)}>
-        <option value="due">Por prazo</option><option value="importance">Por prioridade</option><option value="recent">Mais recentes</option>
-      </select>
+      <Select label="Ordenar tarefas" value={sort} onChange={setSort}
+        options={[[ 'due', 'Por prazo'], ['importance', 'Por prioridade'], ['recent', 'Mais recentes']]} />
     </div>
     {visible.length ? <TaskList entries={visible} selectedId={onlyId} /> : <Surface><EmptyState icon={<ListTodo size={24} />} title="Nenhuma tarefa nesta lista"
       description={status === 'active' ? 'Adicione uma tarefa ou altere o filtro de matéria.' : 'Os registros aparecem aqui quando você muda o estado da tarefa.'} /></Surface>}

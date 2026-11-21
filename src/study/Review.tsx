@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Layers, Pencil, Plus, Trash2 } from 'lucide-react';
-import { Button, EmptyState, Surface } from '../components/ui';
+import { Layers, Pencil, Trash2 } from 'lucide-react';
+import { Button, CreateButton, EmptyState, Surface } from '../components/ui';
 import { useApp } from '../state/AppState';
 import { uid, type Flashcard } from '../types';
 import { asLocalDate } from '../lib/engine';
@@ -30,7 +30,7 @@ export function Review({ subjectId }: { subjectId: string }) {
   };
   return <div className="nw-stack">
     <div className="nw-section-heading"><div><h2>Revisão espaçada</h2><span className="nw-muted">{due.length} para revisar hoje{graded > 0 && ` · ${graded} nesta sessão`}</span></div>
-      <Button variant="primary" icon={<Plus size={16} />} onClick={() => setDraft({ id: uid(), subjectId, front: '', back: '', due: now, interval: 0 })}>Novo cartão</Button></div>
+      <CreateButton onClick={() => setDraft({ id: uid(), subjectId, front: '', back: '', due: now, interval: 0 })}>Novo cartão</CreateButton></div>
     {draft && <Surface className="nw-padding"><form className="nw-stack" onSubmit={save}>
       <label className="field-label">Pergunta<textarea required rows={2} maxLength={1000} value={draft.front} onChange={(event) => setDraft({ ...draft, front: event.target.value })} /></label>
       <label className="field-label">Resposta<textarea required rows={3} maxLength={5000} value={draft.back} onChange={(event) => setDraft({ ...draft, back: event.target.value })} /></label>
