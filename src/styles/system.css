@@ -75,6 +75,7 @@
 }
 .ds-select > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ds-select > svg { flex: none; color: var(--secondary); transition: rotate var(--time-quick) var(--ease-standard); }
+.ds-select[data-state='open'] { pointer-events: auto; }
 .ds-select[data-state='open'] > svg { rotate: 180deg; }
 .ds-select:not(:disabled):hover, .ds-select[data-state='open'] { border-color: var(--accent); }
 .ds-select:disabled { opacity: .5; }
