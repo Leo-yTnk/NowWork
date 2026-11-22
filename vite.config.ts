@@ -29,7 +29,7 @@ function offlineWorkspace(): Plugin {
         const index = bundle['index.html'];
         if (!index || index.type !== 'asset') this.error('The offline workspace requires index.html.');
         const html = String(index.source);
-        const files = Object.keys(bundle).filter((file) => /\.(js|css|woff2|webp)$/.test(file)).sort();
+        const files = Object.keys(bundle).filter((file) => /\.(js|css|woff2|webp|png)$/.test(file)).sort();
         // Vite fingerprints every compiled resource. A new build gets a separate cache.
         const revision = files.join('|') + html;
         let hash = 2166136261;

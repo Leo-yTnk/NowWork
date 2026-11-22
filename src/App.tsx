@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, Check, CircleHelp, Coffee, Download, Pencil, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import nowWorkLogo from './assets/nowwork-logo.png';
 import { AppProvider, useApp } from './state/AppState';
 import { ElasticSheet } from './components/ElasticSheet';
 import { Button, IconButton, PageHeading, Stack } from './components/ui';
@@ -148,7 +149,7 @@ function AppContent() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [sheet]);
-  if (!app.ready) return <div className="loading-shell"><div className="nw-logo"><span className="nw-logo-icon"><Sparkles size={18} /></span>NowWork</div><p>Preparando seu espaço…</p></div>;
+  if (!app.ready) return <div className="loading-shell"><div className="nw-logo"><img className="nw-logo-icon" src={nowWorkLogo} alt="" width={34} height={34} />NowWork</div><p>Preparando seu espaço…</p></div>;
   const createSubject = () => setSheet({ kind: 'subject' });
   const sheetTitles = { settings: 'Configurações', break: 'Uma pausa para respirar', search: 'Buscar no NowWork',
     task: 'Novo registro', subject: sheet?.kind === 'subject' && sheet.subject ? 'Editar matéria' : 'Nova matéria' };
