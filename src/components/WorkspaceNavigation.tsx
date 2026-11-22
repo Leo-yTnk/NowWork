@@ -99,6 +99,12 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
   const history = useHistoryControls();
   return <header className="workspace-header">
     <div className="workspace-header-inner">
+      <nav className="workspace-primary" aria-label="Navegação principal">
+        <NavigationIndicator className="workspace-current" activeKey={current} />
+        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-label={title} aria-current={current === area ? 'page' : undefined}>
+          <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
+        </a>)}
+      </nav>
       <Toolbar label="Histórico e páginas" className="workspace-history">
         <div className="workspace-sidebar-toggle" data-visible={!!notebook} aria-hidden={!notebook}>
           <IconButton id={notebook?.toggleId} label={notebook?.pagesOpen ? 'Recolher páginas da matéria' : 'Expandir páginas da matéria'}
@@ -113,12 +119,6 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
           }}><ArrowLeft size={18} /></IconButton>
         <IconButton className="workspace-history-step" label="Avançar" disabled={!history.forward} onClick={() => window.history.forward()}><ArrowRight size={18} /></IconButton>
       </Toolbar>
-      <nav className="workspace-primary" aria-label="Navegação principal">
-        <NavigationIndicator className="workspace-current" activeKey={current} />
-        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-label={title} aria-current={current === area ? 'page' : undefined}>
-          <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
-        </a>)}
-      </nav>
       <Toolbar label="Atalhos do NowWork" className="workspace-actions">
         <IconButton label="Buscar no NowWork" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" onClick={search}><Search size={19} /></IconButton>
         <IconButton label="Configurações" aria-haspopup="dialog" onClick={settings}><Settings2 size={19} /></IconButton>
