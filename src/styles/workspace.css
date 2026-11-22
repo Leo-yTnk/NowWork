@@ -1,6 +1,6 @@
 .nw-shell { min-height: 100dvh; background: var(--canvas); }
 .nw-logo { display:inline-flex; width:max-content; align-items:center; gap:10px; padding:0; border:0; background:transparent; color:var(--ink-strong); font-size:23px; letter-spacing:-.07em; font-weight:790; white-space:nowrap; text-decoration:none; }
-.nw-logo-icon { display:block; width:34px; height:34px; flex:none; }
+.nw-logo-icon { display:block; width:34px; height:34px; border-radius:var(--radius-xs); flex:none; }
 .tone-mint { --tone:var(--subject-mint); --tone-ink:var(--subject-mint-ink); }
 .tone-violet { --tone:var(--subject-violet); --tone-ink:var(--subject-violet-ink); }
 .tone-blue { --tone:var(--subject-blue); --tone-ink:var(--subject-blue-ink); }
