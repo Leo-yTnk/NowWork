@@ -1,7 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Ellipsis, House, LibraryBig, PanelLeftClose, PanelLeftOpen, Search, Settings2, Timer } from 'lucide-react';
-import nowWorkLogo from '../assets/nowwork-logo.png';
 import { areas, routeHref, type Area } from '../lib/navigation';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
@@ -101,7 +100,6 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
   return <header className="workspace-header">
     <div className="workspace-header-inner">
       <Toolbar label="Histórico e páginas" className="workspace-history">
-        <img className="nw-logo-icon" src={nowWorkLogo} alt="NowWork" width={34} height={34} />
         <div className="workspace-sidebar-toggle" data-visible={!!notebook} aria-hidden={!notebook}>
           <IconButton id={notebook?.toggleId} label={notebook?.pagesOpen ? 'Recolher páginas da matéria' : 'Expandir páginas da matéria'}
             aria-expanded={notebook?.pagesOpen} aria-controls={notebook?.sidebarId} disabled={!notebook} onClick={notebook?.togglePages}>
