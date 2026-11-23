@@ -234,10 +234,56 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
   const [timings, setTimings] = useState<Record<string, WiggleTiming>>({});
   const [announcement, setAnnouncement] = useState('');
   const actions = useRef<HTMLDivElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
   const saved = data.profile.ribbonOrder;
+
+  useEffect(() => {
+    const viewport = scroll.current;
+    if (!viewport) return;
+    let timer: number | undefined;
+
+    const snapToSection = () => {
+      if (viewport.querySelector('[data-moving="true"]')) return;
+      const current = viewport.scrollLeft;
+      const limit = viewport.scrollWidth - viewport.clientWidth;
+      const edge = viewport.getBoundingClientRect().left + viewport.clientLeft;
+      let target = current;
+      let distance = 16;
+
+      for (const section of viewport.querySelectorAll<HTMLElement>(':scope > .note-ribbon-section')) {
+        // Align just beyond the leading border so the divider scrolls out.
+        const start = current + section.getBoundingClientRect().left + section.clientLeft - edge;
+        const gap = Math.abs(start - current);
+        if (start < 0 || start > limit || gap > distance) continue;
+        target = start;
+        distance = gap;
+      }
+
+      if (Math.abs(target - current) >= 1) {
+        viewport.scrollTo({ left: target, behavior: animate ? 'smooth' : 'instant' });
+      }
+    };
+
+    const scheduleSnap = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(snapToSection, 120);
+    };
+    const nativeScrollEnd = 'onscrollend' in viewport;
+    const event = nativeScrollEnd ? 'scrollend' : 'scroll';
+    const listener = nativeScrollEnd ? snapToSection : scheduleSnap;
+    viewport.addEventListener(event, listener, { passive: true });
+    return () => {
+      viewport.removeEventListener(event, listener);
+      window.clearTimeout(timer);
+    };
+  }, [animate]);
   const endEditing = () => {
     setEditing(false);
-    actions.current?.querySelector('button')?.focus();
+    const button = actions.current?.querySelector('button');
+    const bounds = scroll.current?.getBoundingClientRect();
+    const actionBounds = button?.getBoundingClientRect();
+    const visible = bounds && actionBounds && actionBounds.left < bounds.right && actionBounds.right > bounds.left;
+    (visible ? button : scroll.current)?.focus({ preventScroll: true });
   };
 
   const startEditing = () => {
@@ -251,7 +297,7 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
   };
 
   return <>
-    <div className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada em grade"
+    <div ref={scroll} className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada em grade"
       data-editing={editing} data-animate={animate}>
       {sections.map((section) => <div key={section.id} className="note-ribbon-section" data-section={section.id} role="group" aria-label={section.label}>
         {section.fixed && <div className="note-ribbon-fixed" inert={editing} style={timings['fixed:' + section.id]}>{section.fixed}</div>}
@@ -265,11 +311,11 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
           }} />)}
       </div>)}
       {extra && <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Ferramentas contextuais" inert={editing} style={timings.extra}>{extra}</div>}
-    </div>
-    <div ref={actions} className="note-ribbon-actions">
-      <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}
-        aria-pressed={editing} onMouseDown={(event) => event.preventDefault()}
-        onClick={editing ? endEditing : startEditing}>{editing ? <Check size={18} /> : <ArrowLeftRight size={18} />}</IconButton>
+      <div ref={actions} className="note-ribbon-section note-ribbon-actions">
+        <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}
+          aria-pressed={editing} onMouseDown={(event) => event.preventDefault()}
+          onClick={editing ? endEditing : startEditing}>{editing ? <Check size={18} /> : <ArrowLeftRight size={18} />}</IconButton>
+      </div>
     </div>
     <span role="status" className="visually-hidden">{announcement}</span>
   </>;
