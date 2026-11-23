@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { ArrowLeftRight, Check } from 'lucide-react';
 import { IconButton } from '../components/ui';
@@ -16,6 +16,13 @@ type Gesture = {
 };
 type Preview = { id: string; position: number; x: number; y: number };
 type Slot = { x: number; y: number; moving: boolean };
+type WiggleTiming = CSSProperties & { '--note-wiggle-duration': string; '--note-wiggle-offset': string };
+
+function randomWiggleTiming(): WiggleTiming {
+  const duration = 280 + Math.round(Math.random() * 300);
+  const offset = Math.round(Math.random() * duration);
+  return { '--note-wiggle-duration': duration + 'ms', '--note-wiggle-offset': -offset + 'ms' };
+}
 
 const translate = (x: number, y: number) => 'translate3d(' + x + 'px,' + y + 'px,0)';
 
@@ -76,9 +83,9 @@ function useRibbonMovement(root: { current: HTMLDivElement | null }, preview: Pr
   }, []);
 }
 
-function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
+function RibbonLane({ lane, editing, saved, onSave, endEditing, animate, timings }: {
   lane: Lane; editing: boolean; saved?: string[]; onSave: (order: string[], message: string) => void;
-  endEditing: () => void; animate: boolean;
+  endEditing: () => void; animate: boolean; timings: Record<string, WiggleTiming>;
 }) {
   const { flow = 'horizontal', cells } = lane;
   const root = useRef<HTMLDivElement>(null);
@@ -205,7 +212,7 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
         data-moving={preview?.id === id}
         style={{ gridColumn: flow === 'horizontal' ? 'span ' + (item.span ?? 1) : undefined }}>
         <div className="note-grid-item">
-          <div className="note-grid-face">
+          <div className="note-grid-face" style={timings[lane.id + ':' + id]}>
             <div className="note-grid-control" inert={editing}>{item.control}</div>
             {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
               aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
@@ -224,6 +231,7 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
   const reduce = useReducedMotion();
   const animate = !reduce && !data.profile.reducedMotion;
   const [editing, setEditing] = useState(false);
+  const [timings, setTimings] = useState<Record<string, WiggleTiming>>({});
   const [announcement, setAnnouncement] = useState('');
   const actions = useRef<HTMLDivElement>(null);
   const saved = data.profile.ribbonOrder;
@@ -232,13 +240,23 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
     actions.current?.querySelector('button')?.focus();
   };
 
+  const startEditing = () => {
+    const keys = sections.flatMap(({ id, lanes }) => [
+      'fixed:' + id,
+      ...lanes.flatMap((lane) => lane.cells.map((cell) => lane.id + ':' + cell.id)),
+    ]);
+    setTimings(Object.fromEntries([...keys, 'extra'].map((key) => [key, randomWiggleTiming()])));
+    onEditingStart();
+    setEditing(true);
+  };
+
   return <>
     <div className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada em grade"
       data-editing={editing} data-animate={animate}>
       {sections.map((section) => <div key={section.id} className="note-ribbon-section" data-section={section.id} role="group" aria-label={section.label}>
-        {section.fixed && <div className="note-ribbon-fixed" inert={editing}>{section.fixed}</div>}
+        {section.fixed && <div className="note-ribbon-fixed" inert={editing} style={timings['fixed:' + section.id]}>{section.fixed}</div>}
         {section.lanes.map((lane) => <RibbonLane key={lane.id} lane={lane} editing={editing}
-          animate={animate} saved={saved?.[lane.id] ?? saved?.legacy}
+          animate={animate} timings={timings} saved={saved?.[lane.id] ?? saved?.legacy}
           endEditing={endEditing} onSave={(order, message) => {
             const next = Object.fromEntries(sections.flatMap(({ lanes }) => lanes.map((item) =>
               [item.id, item.id === lane.id ? order : resolveRibbonLane(item.cells.map(({ id }) => id), saved?.[item.id] ?? saved?.legacy)])));
@@ -246,15 +264,12 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
             setAnnouncement(message);
           }} />)}
       </div>)}
-      {extra && <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Ferramentas contextuais" inert={editing}>{extra}</div>}
+      {extra && <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Ferramentas contextuais" inert={editing} style={timings.extra}>{extra}</div>}
     </div>
     <div ref={actions} className="note-ribbon-actions">
       <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}
         aria-pressed={editing} onMouseDown={(event) => event.preventDefault()}
-        onClick={() => {
-          if (!editing) onEditingStart();
-          setEditing(!editing);
-        }}>{editing ? <Check size={18} /> : <ArrowLeftRight size={18} />}</IconButton>
+        onClick={editing ? endEditing : startEditing}>{editing ? <Check size={18} /> : <ArrowLeftRight size={18} />}</IconButton>
     </div>
     <span role="status" className="visually-hidden">{announcement}</span>
   </>;

@@ -349,10 +349,7 @@ html:has(.nw-shell[data-notebook-page]) {
   .note-ribbon-fixed,
   .note-ribbon-extra
 ) {
-  animation: note-ribbon-wiggle .34s ease-in-out infinite;
-}
-.note-ribbon-scroll[data-editing='true'][data-animate='true'] .note-grid-cell:nth-child(even) .note-grid-face {
-  animation-delay: -.17s;
+  animation: note-ribbon-wiggle var(--note-wiggle-duration, 340ms) ease-in-out var(--note-wiggle-offset, 0ms) infinite;
 }
 .note-size-field { --note-size-inline: var(--space-3); }
 .note-size-field {
