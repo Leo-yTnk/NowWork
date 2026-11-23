@@ -205,10 +205,12 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
         data-moving={preview?.id === id}
         style={{ gridColumn: flow === 'horizontal' ? 'span ' + (item.span ?? 1) : undefined }}>
         <div className="note-grid-item">
-          <div className="note-grid-control" inert={editing}>{item.control}</div>
-          {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
-            aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
-            onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)} />}
+          <div className="note-grid-face">
+            <div className="note-grid-control" inert={editing}>{item.control}</div>
+            {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
+              aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
+              onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)} />}
+          </div>
         </div>
       </div>;
     })}

@@ -305,7 +305,7 @@ html:has(.nw-shell[data-notebook-page]) {
   grid-template-rows: repeat(2, var(--note-grid-height));
 }
 .note-grid-cell { min-width: 0; border-radius: var(--radius-sm); }
-.note-grid-item { position: relative; height: 100%; border-radius: inherit; }
+.note-grid-item, .note-grid-face { position: relative; height: 100%; border-radius: inherit; }
 .note-grid-cell[data-moving='true'] { background: var(--accent-soft); }
 .note-grid-cell[data-moving='true'] .note-grid-item {
   background: var(--surface-raised);
@@ -341,17 +341,17 @@ html:has(.nw-shell[data-notebook-page]) {
 .note-grid-grip:hover, .note-grid-grip:active { color: var(--accent); }
 .note-grid-grip:active { cursor: grabbing; }
 @keyframes note-ribbon-wiggle {
-  0%, 100% { rotate: -.85deg; }
-  50% { rotate: .85deg; }
+  0%, 100% { transform: translateX(-1.25px) rotate(-2deg); }
+  50% { transform: translateX(1.25px) rotate(2deg); }
 }
 .note-ribbon-scroll[data-editing='true'][data-animate='true'] :is(
-  .note-grid-cell:not([data-moving='true']) .note-grid-control,
-  .note-ribbon-fixed .btn,
-  .note-ribbon-extra .btn
+  .note-grid-cell:not([data-moving='true']) .note-grid-face,
+  .note-ribbon-fixed,
+  .note-ribbon-extra
 ) {
   animation: note-ribbon-wiggle .34s ease-in-out infinite;
 }
-.note-ribbon-scroll[data-editing='true'][data-animate='true'] .note-grid-cell:nth-child(even) .note-grid-control {
+.note-ribbon-scroll[data-editing='true'][data-animate='true'] .note-grid-cell:nth-child(even) .note-grid-face {
   animation-delay: -.17s;
 }
 .note-size-field { --note-size-inline: var(--space-3); }
