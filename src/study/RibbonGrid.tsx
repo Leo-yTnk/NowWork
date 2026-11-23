@@ -241,14 +241,21 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
     const viewport = scroll.current;
     if (!viewport) return;
     let timer: number | undefined;
+    let frame: number | undefined;
+
+    const cancelSnap = () => {
+      window.clearTimeout(timer);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      frame = undefined;
+    };
 
     const snapToSection = () => {
-      if (viewport.querySelector('[data-moving="true"]')) return;
+      if (frame !== undefined || viewport.querySelector('[data-moving="true"]')) return;
       const current = viewport.scrollLeft;
       const limit = viewport.scrollWidth - viewport.clientWidth;
       const edge = viewport.getBoundingClientRect().left + viewport.clientLeft;
       let target = current;
-      let distance = 16;
+      let distance = 28;
 
       for (const section of viewport.querySelectorAll<HTMLElement>(':scope > .note-ribbon-section')) {
         // Align just beyond the leading border so the divider scrolls out.
@@ -259,12 +266,25 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
         distance = gap;
       }
 
-      if (Math.abs(target - current) >= 1) {
-        viewport.scrollTo({ left: target, behavior: animate ? 'smooth' : 'instant' });
+      if (distance < 1 || target === current) return;
+      if (!animate) {
+        viewport.scrollLeft = target;
+        return;
       }
+
+      const duration = 260;
+      const started = performance.now();
+      const tick = (now: number) => {
+        const progress = Math.min((now - started) / duration, 1);
+        const eased = progress * progress * (3 - 2 * progress);
+        viewport.scrollLeft = current + (target - current) * eased;
+        frame = progress < 1 ? window.requestAnimationFrame(tick) : undefined;
+      };
+      frame = window.requestAnimationFrame(tick);
     };
 
     const scheduleSnap = () => {
+      if (frame !== undefined) return;
       window.clearTimeout(timer);
       timer = window.setTimeout(snapToSection, 120);
     };
@@ -272,9 +292,15 @@ export function RibbonGrid({ sections, extra, onEditingStart }: {
     const event = nativeScrollEnd ? 'scrollend' : 'scroll';
     const listener = nativeScrollEnd ? snapToSection : scheduleSnap;
     viewport.addEventListener(event, listener, { passive: true });
+    viewport.addEventListener('wheel', cancelSnap, { passive: true });
+    viewport.addEventListener('pointerdown', cancelSnap, { passive: true });
+    viewport.addEventListener('keydown', cancelSnap);
     return () => {
       viewport.removeEventListener(event, listener);
-      window.clearTimeout(timer);
+      viewport.removeEventListener('wheel', cancelSnap);
+      viewport.removeEventListener('pointerdown', cancelSnap);
+      viewport.removeEventListener('keydown', cancelSnap);
+      cancelSnap();
     };
   }, [animate]);
   const endEditing = () => {
