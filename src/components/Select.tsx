@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react';
+import { useId, useRef, useState, type CSSProperties } from 'react';
 import * as Primitive from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
 import { ControlValue } from './ControlValue';
@@ -9,6 +9,7 @@ export function Select<T extends string | number>({ label, value, options, onCha
   label: string; value: T; options: readonly SelectOption<T>[];
   onChange: (value: T) => void; displayValue?: string; disabled?: boolean; returnFocus?: boolean; animateValue?: boolean;
 }) {
+  const valueId = useId();
   const selected = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -28,6 +29,7 @@ export function Select<T extends string | number>({ label, value, options, onCha
     }
   }} onOpenChange={changeOpen}>
     <Primitive.Trigger ref={trigger} className="ds-select" aria-label={label} title={label}
+      aria-describedby={animateValue && shownValue !== undefined ? valueId : undefined}
       onPointerDown={(event) => {
         // Radix normally opens on mouse press. Toggle only once, on click.
         if (event.pointerType === 'mouse' && event.button === 0) event.preventDefault();
@@ -36,7 +38,10 @@ export function Select<T extends string | number>({ label, value, options, onCha
         event.preventDefault();
         if (!event.ctrlKey) changeOpen(!open);
       }}>
-      <Primitive.Value>{animateValue && shownValue !== undefined ? <ControlValue value={shownValue} /> : displayValue}</Primitive.Value>
+      <Primitive.Value>{animateValue && shownValue !== undefined ? <>
+        <span id={valueId} className="visually-hidden">{shownValue}</span>
+        <ControlValue value={shownValue} />
+      </> : displayValue}</Primitive.Value>
       <Primitive.Icon asChild><ChevronDown size={13} aria-hidden="true" /></Primitive.Icon>
     </Primitive.Trigger>
     <Primitive.Portal>
