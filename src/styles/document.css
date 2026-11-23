@@ -324,7 +324,7 @@ html:has(.nw-shell[data-notebook-page]) {
   width: 17px;
   height: 14px;
   padding: 0;
-  color: var(--secondary);
+  color: var(--accent);
   background: transparent;
   border: 0;
   border-radius: var(--radius-xs);
