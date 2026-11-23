@@ -151,7 +151,10 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
   const bar = <div ref={root} className={mobile ? 'note-controls note-dock' : 'note-controls note-toolbar'}
     style={mobile && inset ? { bottom: inset + 8, '--note-keyboard-inset': inset + 'px' } as CSSProperties : undefined}>
     <div className={'note-command-bar' + (advanced ? ' note-command-advanced' : '')} role="group" aria-label="Ferramentas do caderno">
-      {advanced ? <RibbonGrid sections={ribbon} extra={context && categoryButton(context)} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
+      {advanced ? <RibbonGrid sections={ribbon} extra={context && categoryButton(context)} onEditingStart={() => {
+        setPanel(null);
+        clearExtra();
+      }} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
       : <div className="note-command-scroll">
         <div className="note-command-group">{simple.history}</div>
         {compact ? <div className="note-command-group">
