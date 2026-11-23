@@ -12,7 +12,7 @@ import { Mente } from './tabs/Mente';
 import { Evolucao } from './tabs/Evolucao';
 import { validateData } from './lib/storage';
 import { springs } from './lib/motion';
-import type { Subject, Theme } from './types';
+import type { AppData, Subject, Theme } from './types';
 import { Dashboard } from './study/Dashboard';
 import { Subjects, SubjectMark } from './study/Subjects';
 import { Tasks, Week } from './study/Planner';
@@ -35,20 +35,24 @@ function useWorkspaceRoute() {
   return { route: parseRoute(hash), open };
 }
 
+function downloadBackup(data: AppData) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'nowwork-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function Settings() {
   const app = useApp();
   const { data } = app;
   const input = useRef<HTMLInputElement>(null);
   const download = () => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'nowwork-backup-' + new Date().toISOString().slice(0,10) + '.json';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBackup(data);
     app.notify('Backup JSON exportado.');
   };
   const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -149,6 +153,10 @@ function AppContent() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [sheet]);
+  if (app.loadFailed) return <main className="loading-shell">
+    <p role="alert">O NowWork não conseguiu ler os dados locais. Os arquivos locais foram preservados.</p>
+    <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
+  </main>;
   if (!app.ready) return <div className="loading-shell"><div className="nw-logo"><img className="nw-logo-icon" src={nowWorkLogo} alt="" width={34} height={34} />NowWork</div><p>Preparando seu espaço…</p></div>;
   const createSubject = () => setSheet({ kind: 'subject' });
   const sheetTitles = { settings: 'Configurações', break: 'Uma pausa para respirar', search: 'Buscar no NowWork',
@@ -167,6 +175,10 @@ function AppContent() {
         openOptions: () => setOptionsOpen(true),
       } : undefined} />
     <main className={'nw-main' + (noteId ? ' document-workspace' : '')} id="main-content" tabIndex={-1}>
+      {app.saveError && <div className="inline-alert" role="alert">
+        <span>{app.saveError}</span>
+        <Button size="sm" onClick={() => downloadBackup(app.data)}>Exportar backup</Button>
+      </div>}
       <motion.div key={routeKey} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? { duration: 0 } : springs.panel}>
         {route.area === 'hoje' && <Dashboard subject={subjectPage} newSubject={createSubject}

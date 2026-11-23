@@ -17,8 +17,16 @@ function openDatabase(): Promise<IDBDatabase> {
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
     };
-    request.onsuccess = () => resolve(request.result);
+    let blocked = false;
+    request.onsuccess = () => {
+      if (blocked) request.result.close();
+      else resolve(request.result);
+    };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => {
+      blocked = true;
+      reject(new Error('O armazenamento local está ocupado.'));
+    };
   });
 }
 
@@ -28,8 +36,7 @@ export function validateData(value: unknown): AppData {
   if (obj.version !== 1 || !obj.profile || !Array.isArray(obj.entries) || !Array.isArray(obj.activity) || !Array.isArray(obj.rewards)) {
     throw new Error('Formato de backup não reconhecido (versão 1).');
   }
-  if (obj.entries.length > 3000 || obj.activity.length > 20000 || obj.rewards.length > 1000) throw new Error('Backup acima do limite de segurança.');
-  const subjects = Array.isArray(obj.subjects) ? obj.subjects.slice(0, 200).filter(
+  const subjects = Array.isArray(obj.subjects) ? obj.subjects.filter(
     (item) => item && typeof item.id === 'string' && typeof item.title === 'string' && SUBJECT_COLORS.includes(item.color),
   ).map((item) => ({ id: item.id, title: item.title.slice(0, 60), color: item.color,
     ...(typeof item.icon === 'string' && /^[a-z0-9-]{1,60}$/.test(item.icon) ? { icon: item.icon } : {}) })) : emptyData().subjects;
@@ -37,20 +44,20 @@ export function validateData(value: unknown): AppData {
   const subjectVisits = Array.isArray(obj.subjectVisits) ? obj.subjectVisits.slice(-2000).filter((visit) =>
     visit && typeof visit.subjectId === 'string' && hasSubject(visit.subjectId) &&
     typeof visit.at === 'string' && Number.isFinite(Date.parse(visit.at))) : [];
-  const notes = Array.isArray(obj.notes) ? obj.notes.slice(0, 2000).filter(
+  const notes = Array.isArray(obj.notes) ? obj.notes.filter(
     (note) => note && hasSubject(note.subjectId) && typeof note.title === 'string' && Array.isArray(note.blocks),
   ).map((note) => ({
     id: String(note.id || uid()), subjectId: note.subjectId, title: note.title.slice(0, 150),
     updatedAt: String(note.updatedAt || new Date().toISOString()),
     ...(note.content === undefined ? {} : { content: validateDocument(note.content) }),
-    blocks: note.blocks.slice(0, 250).filter(
+    blocks: note.blocks.filter(
       (block) => block && BLOCK_TYPES.includes(block.type) && typeof block.text === 'string',
     ).map((block) => ({
       id: String(block.id || uid()), type: block.type, text: block.text.slice(0, 12000),
       checked: !!block.checked, url: typeof block.url === 'string' ? block.url.slice(0, 2000) : undefined,
     })),
   })) : [];
-  const flashcards = Array.isArray(obj.flashcards) ? obj.flashcards.slice(0, 3000).filter(
+  const flashcards = Array.isArray(obj.flashcards) ? obj.flashcards.filter(
     (card) => card && hasSubject(card.subjectId) && typeof card.front === 'string' && typeof card.back === 'string',
   ).map((card) => ({
     id: String(card.id || uid()), subjectId: card.subjectId, front: card.front.slice(0, 1000),
@@ -69,8 +76,8 @@ export function validateData(value: unknown): AppData {
       effort: [1,2,3].includes(entry.effort) ? entry.effort : 2,
       minutes: Math.max(5, Math.min(600, Number(entry.minutes) || 25)),
       dueAt: typeof entry.dueAt === 'string' && Number.isFinite(Date.parse(entry.dueAt)) ? entry.dueAt : null,
-      steps: Array.isArray(entry.steps) ? entry.steps.slice(0, 60).filter((s) => s && typeof s.title === 'string').map((s) => ({ id: String(s.id || crypto.randomUUID()), title: s.title.slice(0, 200), done: !!s.done, awarded: !!s.awarded })) : [],
-      postponeCount: Math.max(0, Math.min(100, Number(entry.postponeCount) || 0)),
+      steps: Array.isArray(entry.steps) ? entry.steps.filter((s) => s && typeof s.title === 'string').map((s) => ({ id: String(s.id || crypto.randomUUID()), title: s.title.slice(0, 200), done: !!s.done, awarded: !!s.awarded })) : [],
+      postponeCount: Math.max(0, Number(entry.postponeCount) || 0),
       source: entry.source === 'demo' ? 'demo' : 'user',
       createdAt: String(entry.createdAt || new Date().toISOString()),
       updatedAt: String(entry.updatedAt || new Date().toISOString()),
@@ -114,55 +121,121 @@ export function validateData(value: unknown): AppData {
   };
 }
 
-export async function loadData(): Promise<AppData> {
+export class StorageConflictError extends Error {
+  constructor() {
+    super('Outra aba salvou uma versão mais recente. Exporte as mudanças desta aba antes de recarregar.');
+  }
+}
+
+interface LocalWorkspace {
+  data: AppData;
+  warning?: string;
+  save: (next: AppData) => Promise<void>;
+}
+
+function openSession(data: AppData, write: LocalWorkspace['save']): LocalWorkspace {
+  let pending = Promise.resolve();
+  return {
+    data,
+    save(next) {
+      const result = pending.then(() => write(next));
+      pending = result.catch(() => {});
+      return result;
+    },
+  };
+}
+
+async function inSnapshotTransaction<T>(
+  mode: IDBTransactionMode,
+  snapshot: (store: IDBObjectStore, raw: unknown) => T,
+): Promise<T> {
+  const db = await openDatabase();
   try {
-    const db = await openDatabase();
-    const raw = await new Promise<unknown>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly');
-      const request = tx.objectStore(STORE).get(KEY);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(STORE, mode);
+      const store = tx.objectStore(STORE);
+      const request = store.get(KEY);
+      let result: T;
+      request.onsuccess = () => {
+        try {
+          result = snapshot(store, request.result);
+        } catch (error) {
+          tx.abort();
+          reject(error);
+        }
+      };
+      tx.oncomplete = () => resolve(result);
+      tx.onabort = () => reject(tx.error || new Error('Operação local interrompida.'));
     });
+  } finally {
     db.close();
-    if (raw !== undefined) return validateData(raw);
-  } catch (error) {
-    console.warn('NowWork: leitura do IndexedDB indisponível.', error);
-  }
-  try {
-    const fallback = localStorage.getItem(FALLBACK);
-    return fallback ? validateData(JSON.parse(fallback)) : emptyData();
-  } catch {
-    return emptyData();
   }
 }
 
-async function writeSnapshot(data: AppData): Promise<void> {
-  try {
-    const db = await openDatabase();
+function readFallback(): string | null {
+  return localStorage.getItem(FALLBACK);
+}
+
+function openFallback(): LocalWorkspace {
+  let saved = readFallback();
+  const data = saved === null ? emptyData() : validateData(JSON.parse(saved));
+  return openSession(data, async (next) => {
+    // A single lock covers both the comparison and the write across tabs.
+    if (!navigator.locks) throw new Error('O navegador não permite salvar esta cópia com segurança.');
+    await navigator.locks.request(FALLBACK, () => {
+      if (readFallback() !== saved) throw new StorageConflictError();
+      const serialized = JSON.stringify(next);
+      localStorage.setItem(FALLBACK, serialized);
+      saved = serialized;
+    });
+  });
+}
+
+async function openIndexedWorkspace(): Promise<LocalWorkspace> {
+  const raw = await inSnapshotTransaction('readonly', (_store, snapshot) => snapshot);
+  let saved = JSON.stringify(raw);
+  let fallbackSource: string | null = null;
+  let data: AppData;
+  if (raw === undefined) {
+    fallbackSource = readFallback();
+    data = fallbackSource === null ? emptyData() : validateData(JSON.parse(fallbackSource));
+  } else {
+    data = validateData(raw);
+  }
+
+  return openSession(data, async (next) => {
+    const serialized = JSON.stringify(next);
+    await inSnapshotTransaction('readwrite', (store, current) => {
+      // IndexedDB holds the write lock until the comparison and the put commit.
+      if (JSON.stringify(current) !== saved ||
+          (saved === undefined && readFallback() !== fallbackSource)) {
+        throw new StorageConflictError();
+      }
+      store.put(next, KEY);
+    });
+    saved = serialized;
     try {
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).put(data, KEY);
-        tx.oncomplete = () => resolve();
-        tx.onabort = () => reject(tx.error);
-        tx.onerror = () => reject(tx.error);
-      });
-    } finally {
-      db.close();
+      localStorage.setItem(FALLBACK, serialized);
+    } catch {
+      // IndexedDB has already committed the current snapshot.
     }
-  } catch (error) {
-    localStorage.setItem(FALLBACK, JSON.stringify(data));
-    console.warn('NowWork: salvando no armazenamento de contingência.', error);
-    return;
-  }
-  // A full or disabled fallback store should not report a failure after IndexedDB committed.
-  try { localStorage.setItem(FALLBACK, JSON.stringify(data)); } catch { /* IndexedDB has the current snapshot. */ }
+  });
 }
 
-let pendingWrite = Promise.resolve();
-
-export function saveData(data: AppData): Promise<void> {
-  const write = pendingWrite.then(() => writeSnapshot(data));
-  pendingWrite = write.catch(() => {});
-  return write;
+export async function loadData(): Promise<LocalWorkspace> {
+  if (!window.indexedDB) return openFallback();
+  try {
+    return await openIndexedWorkspace();
+  } catch (error) {
+    const fallback = readFallback();
+    if (fallback === null) throw error;
+    const data = validateData(JSON.parse(fallback));
+    return {
+      data,
+      warning: 'O armazenamento principal não abriu. A cópia de contingência pode estar desatualizada. Exporte um backup.',
+      async save() {
+        throw new Error('O armazenamento principal está indisponível.');
+      },
+    };
+  }
 }
