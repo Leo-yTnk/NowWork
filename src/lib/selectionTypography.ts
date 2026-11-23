@@ -29,6 +29,7 @@ function describeText(block: Node, position: ResolvedPos, marks: readonly Mark[]
     weight: hasMark('bold') ? (weight < 350 ? 400 : weight < 550 ? 700 : Math.max(weight, 900)) : weight,
     fontFamily: (attrs?.fontFamily || null) as string | null,
     fontSize: (attrs?.fontSize || null) as string | null,
+    lineHeight: (attrs?.lineHeight || null) as string | null,
     hasMark,
   };
 }
@@ -67,6 +68,7 @@ export function selectionTypography({ doc, selection, storedMarks }: EditorState
     weight: common((entry) => entry.weight),
     fontFamily: common((entry) => entry.fontFamily),
     fontSize: common((entry) => entry.fontSize),
+    lineHeight: common((entry) => entry.lineHeight),
     mark: (name: typeof textMarkNames[number]) => common((entry) => entry.hasMark(name)),
   };
 }

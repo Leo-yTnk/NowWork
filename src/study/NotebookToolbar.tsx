@@ -5,6 +5,7 @@ import { ArrowLeft, KeyboardOff, List, Type } from 'lucide-react';
 import { Button, IconButton } from '../components/ui';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
+import { RibbonGrid, type RibbonCell } from './RibbonGrid';
 
 export interface EditorAction {
   label: string;
@@ -67,7 +68,7 @@ function ToolGroups({ groups }: { groups: ToolGroup[] }) {
 
 export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, supplemental, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
   simple: { history: ReactNode; text: ReactNode; lists: ReactNode; insertIcon: ReactNode };
-  ribbon: ReactNode; insertion: ReactNode; reorderActions: ReactNode; supplemental: ToolGroup[]; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
+  ribbon: [RibbonCell[], RibbonCell[]]; insertion: ReactNode; reorderActions: ReactNode; supplemental: ToolGroup[]; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
   dismissKeyboard: () => void; clearExtra: () => void;
 }) {
   const [simpleCategory, setSimpleCategory] = useState('format');
@@ -150,14 +151,7 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, sup
   const bar = <div ref={root} className={mobile ? 'note-controls note-dock' : 'note-controls note-toolbar'}
     style={mobile && inset ? { bottom: inset + 8, '--note-keyboard-inset': inset + 'px' } as CSSProperties : undefined}>
     <div className={'note-command-bar' + (advanced ? ' note-command-advanced' : '')} role="group" aria-label="Ferramentas do caderno">
-      {advanced ? <div className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada rolável">
-        <div className="note-history-group" role="group" aria-label="Histórico">{simple.history}</div>
-        {ribbon}
-        <div className="note-ribbon-end">{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
-        <div className="note-ribbon-extra" role="group" aria-label="Mais ferramentas">
-          {more}{context && categoryButton(context)}
-        </div>
-      </div> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
+      {advanced ? <RibbonGrid rows={ribbon} extra={<>{more}{context && categoryButton(context)}</>} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
       : <div className="note-command-scroll">
         <div className="note-command-group">{simple.history}</div>
         {compact ? <div className="note-command-group">

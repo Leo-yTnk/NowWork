@@ -1,4 +1,5 @@
 import type { EditorTypography } from './lib/editorTypography';
+import type { RibbonOrder } from './lib/ribbonOrder';
 import type { JSONContent } from '@tiptap/core';
 
 export type EntryKind = 'task' | 'event' | 'worry' | 'idea';
@@ -75,6 +76,7 @@ export interface AppData {
     theme: Theme;
     reducedMotion: boolean;
     toolbarMode: 'simple' | 'advanced';
+    ribbonOrder?: RibbonOrder;
     editorTypography: EditorTypography;
   };
   subjects: Subject[];

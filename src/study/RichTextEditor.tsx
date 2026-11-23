@@ -13,7 +13,8 @@ import { blockViews, collectionIcons, editDocumentBlock } from './collections/Do
 import { Options } from './collections/Fields';
 import { Button, IconButton, Toolbar } from '../components/ui';
 import { Select } from '../components/Select';
-import { ControlValue } from '../components/ControlValue';
+import { EditorNumberField } from './EditorNumberField';
+import type { RibbonCell } from './RibbonGrid';
 import { documentExtensions, safeLink } from '../lib/documents';
 import { copyNoteSelection, pasteNoteSelection } from '../lib/noteClipboard';
 import { useApp } from '../state/AppState';
@@ -50,7 +51,6 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
   const [toolPanel, setToolPanel] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [invalidLink, setInvalidLink] = useState(false);
-  const [sizeDraft, setSizeDraft] = useState<string | null>(null);
   const [popover, setPopover] = useState<'ink' | 'highlight' | null>(null);
   const { notify, data } = useApp();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -90,7 +90,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       };
       return {
         list, block, textStyle, selectedBlock, level: typography.level, weight: typography.weight,
-        fontFamily: typography.fontFamily, fontSize: typography.fontSize,
+        fontFamily: typography.fontFamily, fontSize: typography.fontSize, lineHeight: typography.lineHeight,
         canStyle: !selectedBlock && (editor.can().setParagraph() || editor.can().setHeading({ level: 1 })),
         canWeight: editor.can().setMark('textStyle'),
         pageWidth: editor.state.doc.attrs.noteWidth ?? 'standard',
@@ -268,31 +268,16 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       if (value) chain.unsetBold();
       chain.setMark('textStyle', { fontWeight: value ? Number(value) : null }).removeEmptyTextStyle().run();
     }} />;
-  const mixedSize = tools.fontSize === 'Misto';
-  const activeSize = mixedSize ? '' : String(tools.fontSize ?? '').replace(/px$/, '');
-  const applySize = (refocus: boolean) => {
-    if (sizeDraft === null) return;
-    setSizeDraft(null);
-    const value = sizeDraft.trim().replace(',', '.').replace(/px$/i, '').trim();
-    if (value && (!/^\d+(?:\.\d+)?$/.test(value) || Number(value) <= 0 || Number(value) > 2000)) {
-      notify('Use um tamanho entre 0 e 2000 pixels.');
-      return;
-    }
-    const chain = refocus ? focus() : selectionChain();
-    (value ? chain.setFontSize(Number(value) + 'px') : chain.unsetFontSize()).run();
-  };
-  const sizePlaceholder = mixedSize ? 'Misto' : 'Auto';
-  const sizeInput = <div className="note-size-field">
-    <input className="ds-input note-size-input" aria-label="Tamanho da fonte" title="Tamanho em pixels"
-      inputMode="decimal" data-mixed={mixedSize} placeholder={sizePlaceholder} value={sizeDraft ?? activeSize} onChange={(event) => setSizeDraft(event.target.value)}
-      onBlur={() => applySize(false)} onKeyDown={(event) => {
-        if (event.key === 'Enter') { event.preventDefault(); applySize(true); }
-        if (event.key === 'Escape') { event.preventDefault(); setSizeDraft(null); }
-      }} />
-    <span className="note-size-value" data-placeholder={!activeSize && !mixedSize}>
-      <ControlValue value={activeSize || sizePlaceholder} />
-    </span>
-  </div>;
+  const sizeInput = <EditorNumberField label="Tamanho da fonte" title="Tamanho em pixels" placeholder="Auto"
+    value={String(tools.fontSize ?? '').replace(/px$/, '')} onCommit={(draft, refocus) => {
+      const value = draft.trim().replace(',', '.').replace(/px$/i, '').trim();
+      if (value && (!/^\d+(?:\.\d+)?$/.test(value) || Number(value) <= 0 || Number(value) > 2000)) {
+        notify('Use um tamanho entre 0 e 2000 pixels.');
+        return;
+      }
+      const chain = refocus ? focus() : selectionChain();
+      (value ? chain.setFontSize(Number(value) + 'px') : chain.unsetFontSize()).run();
+    }} />;
   const colorActions: EditorAction[] = [
     { label: 'Cor do texto', icon: <span className="note-ink-icon" style={{ borderColor: tools.textStyle.color || undefined }}>A</span>, pressed: popover === 'ink', run: () => toggle('ink') },
     { label: 'Cor de fundo', icon: <Highlighter size={18} />, pressed: tools.highlight || popover === 'highlight', run: () => toggle('highlight') },
@@ -313,9 +298,16 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       const view = root instanceof Element ? root.matches('[data-node-view-wrapper]') ? root : root.querySelector('[data-node-view-wrapper]') : null;
       view?.dispatchEvent(new Event(editDocumentBlock));
     } };
-  const lineHeight = <Select animateValue label="Altura da linha" returnFocus={false} value={tools.textStyle.lineHeight ?? ''}
-    options={[[ '', 'Padrão'], ['1', 'Simples'], ['1.25', '1,25'], ['1.5', '1,5'], ['2', 'Duplo']]}
-    onChange={(value) => (value ? focus().setLineHeight(value) : focus().unsetLineHeight()).run()} />;
+  const lineHeight = <EditorNumberField label="Altura da linha" title="Altura da linha (ex.: 1,5)" placeholder="Linha"
+    value={String(tools.lineHeight ?? '').replace('.', ',')} onCommit={(draft, refocus) => {
+      const value = draft.trim().replace(',', '.');
+      if (value && (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(value) || !Number.isFinite(Number(value)) || Number(value) <= 0)) {
+        notify('Digite uma altura de linha maior que zero.');
+        return;
+      }
+      const chain = refocus ? focus() : selectionChain();
+      (value ? chain.setLineHeight(String(Number(value))) : chain.unsetLineHeight()).run();
+    }} />;
   const pageWidth = <Options label="Largura do conteúdo" value={tools.pageWidth}
     options={[[ 'narrow', 'Estreita'], ['standard', 'Padrão'], ['wide', 'Ampla']]}
     onChange={(value) => {
@@ -327,8 +319,9 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     const Icon = collectionIcons[kind];
     return { label: 'Inserir ' + definition.label.toLocaleLowerCase('pt-BR'), icon: <Icon size={17} />, run: () => insertSet(kind) };
   });
-  const insertion = <div className="note-ribbon-insertion" role="group" aria-label="Inserir">
-    <div className="note-insert-actions">{group([insertImage, insertTable, linkAction, ...insertSets, quote, code, separator])}</div>
+  const insertActions = [insertImage, insertTable, linkAction, ...insertSets, quote, code, separator];
+  const insertion = <div role="group" aria-label="Inserir">
+    <div className="note-insert-actions">{group(insertActions)}</div>
   </div>;
   const cellActions: EditorAction[] = [
     { label: 'Alternar cabeçalho da primeira linha', icon: <Rows2 size={18} />, run: () => focus().toggleHeaderRow().run() },
@@ -358,22 +351,29 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     ...(context.length ? [{ id: 'context', label: tools.table ? 'Tabela' : tools.selectedBlock === 'collection' ? 'Conjunto' : 'Imagem',
       icon: tools.table ? <Table2 size={18} /> : <SlidersHorizontal size={18} />, groups: context }] : []),
   ];
-  const ribbon = <>
-    <div className="note-ribbon-clipboard" role="group" aria-label="Área de transferência">
-      <Button variant="ghost" size="sm" className="note-ribbon-paste" icon={clipboard[0].icon}
-        onMouseDown={(event) => event.preventDefault()} onClick={clipboard[0].run}>Colar</Button>
-      <EditorActionButton action={clipboard[1]} />
-      <EditorActionButton action={clipboard[2]} />
-    </div>
-    <div className="note-ribbon-font" role="group" aria-label="Estilo e fonte">
-      <div className="note-ribbon-font-selects">{styleControl}{fontSelect}{weightField}{sizeInput}</div>
-      <div className="note-ribbon-marks">{group(textActions)}</div>
-    </div>
-    <div className="note-ribbon-paragraph" role="group" aria-label="Parágrafo">
-      <div>{group(align)}{lineHeight}</div>
-      <div>{group([...lists, ...blocks.slice(0, 2)])}</div>
-    </div>
-  </>;
+  const actionCell = (action: EditorAction): RibbonCell => ({
+    id: action.label, label: action.label, control: <EditorActionButton action={action} />,
+  });
+  const ribbon: [RibbonCell[], RibbonCell[]] = [
+    [
+      actionCell(history[0]),
+      { id: 'paste', label: 'Colar', span: 2, control: <Button variant="ghost" size="sm" icon={clipboard[0].icon}
+        onMouseDown={(event) => event.preventDefault()} onClick={clipboard[0].run}>Colar</Button> },
+      actionCell(clipboard[1]),
+      { id: 'style', label: 'Estilo', span: 3, control: styleControl },
+      { id: 'font', label: 'Fonte', span: 3, control: fontSelect },
+      { id: 'weight', label: 'Peso da fonte', span: 2, control: weightField },
+      { id: 'size', label: 'Tamanho da fonte', control: sizeInput },
+      ...align.map(actionCell),
+      { id: 'line-height', label: 'Altura da linha', span: 2, control: lineHeight },
+      ...insertActions.slice(0, 3).map(actionCell), actionCell(blocks[2]),
+    ],
+    [
+      actionCell(history[1]), actionCell(clipboard[2]), ...textActions.map(actionCell),
+      ...lists.map(actionCell), ...blocks.slice(0, 2).map(actionCell),
+      ...insertActions.slice(3).map(actionCell), actionCell(blocks[3]),
+    ],
+  ];
   const title = popover === 'ink' ? 'Cor do texto' : 'Cor de fundo';
   const setColor = (color?: string) => {
     setPopover(null);
