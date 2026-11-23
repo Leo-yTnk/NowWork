@@ -14,7 +14,7 @@ import { Options } from './collections/Fields';
 import { Button, IconButton, Toolbar } from '../components/ui';
 import { Select } from '../components/Select';
 import { EditorNumberField } from './EditorNumberField';
-import type { RibbonCell } from './RibbonGrid';
+import type { RibbonCell, RibbonSection } from './RibbonGrid';
 import { documentExtensions, safeLink } from '../lib/documents';
 import { copyNoteSelection, pasteNoteSelection } from '../lib/noteClipboard';
 import { useApp } from '../state/AppState';
@@ -354,25 +354,36 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
   const actionCell = (action: EditorAction): RibbonCell => ({
     id: action.label, label: action.label, control: <EditorActionButton action={action} />,
   });
-  const ribbon: [RibbonCell[], RibbonCell[]] = [
-    [
-      actionCell(history[0]),
-      { id: 'paste', label: 'Colar', span: 2, control: <Button variant="ghost" size="sm" icon={clipboard[0].icon}
-        onMouseDown={(event) => event.preventDefault()} onClick={clipboard[0].run}>Colar</Button> },
-      actionCell(clipboard[1]),
-      { id: 'style', label: 'Estilo', span: 3, control: styleControl },
-      { id: 'font', label: 'Fonte', span: 3, control: fontSelect },
-      { id: 'weight', label: 'Peso da fonte', span: 2, control: weightField },
-      { id: 'size', label: 'Tamanho da fonte', control: sizeInput },
-      ...align.map(actionCell),
-      { id: 'line-height', label: 'Altura da linha', span: 2, control: lineHeight },
-      ...insertActions.slice(0, 3).map(actionCell), actionCell(blocks[2]),
-    ],
-    [
-      actionCell(history[1]), actionCell(clipboard[2]), ...textActions.map(actionCell),
-      ...lists.map(actionCell), ...blocks.slice(0, 2).map(actionCell),
-      ...insertActions.slice(3).map(actionCell), actionCell(blocks[3]),
-    ],
+  const ribbon: RibbonSection[] = [
+    { id: 'history', label: 'Histórico', lanes: [
+      { id: 'history', flow: 'vertical', cells: history.map(actionCell) },
+    ] },
+    { id: 'clipboard', label: 'Área de transferência',
+      fixed: <Button variant="ghost" size="sm" className="note-ribbon-paste" icon={clipboard[0].icon}
+        onMouseDown={(event) => event.preventDefault()} onClick={clipboard[0].run}>Colar</Button>,
+      lanes: [{ id: 'clipboard', flow: 'vertical', cells: clipboard.slice(1).map(actionCell) }],
+    },
+    { id: 'font', label: 'Estilo e fonte', lanes: [
+      { id: 'typography', cells: [
+        { id: 'style', label: 'Estilo', span: 3, control: styleControl },
+        { id: 'font', label: 'Fonte', span: 3, control: fontSelect },
+        { id: 'weight', label: 'Peso da fonte', span: 2, control: weightField },
+        { id: 'size', label: 'Tamanho da fonte', control: sizeInput },
+      ] },
+      { id: 'marks', cells: textActions.map(actionCell) },
+    ] },
+    { id: 'paragraph', label: 'Parágrafo', lanes: [
+      { id: 'alignment', cells: [...align.map(actionCell),
+        { id: 'line-height', label: 'Altura da linha', span: 2, control: lineHeight },
+      ] },
+      { id: 'lists', cells: [...lists, ...blocks.slice(0, 2)].map(actionCell) },
+    ] },
+    { id: 'insert', label: 'Inserir', lanes: [
+      { id: 'insert', flow: 'matrix', cells: insertActions.map(actionCell) },
+    ] },
+    { id: 'blocks', label: 'Mover bloco', lanes: [
+      { id: 'blocks', flow: 'vertical', cells: blocks.slice(2).map(actionCell) },
+    ] },
   ];
   const title = popover === 'ink' ? 'Cor do texto' : 'Cor de fundo';
   const setColor = (color?: string) => {
