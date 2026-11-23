@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'motion/react';
-import { Check, Grip, GripHorizontal } from 'lucide-react';
+import { ArrowLeftRight, Check } from 'lucide-react';
 import { IconButton } from '../components/ui';
+import { springs } from '../lib/motion';
 import { moveRibbonItem, resolveRibbonLane } from '../lib/ribbonOrder';
 import { useApp } from '../state/AppState';
 
@@ -15,7 +16,14 @@ type Gesture = {
   scrollStart: number; started: boolean;
   box: DOMRect; slots: { x: number; y: number }[];
 };
-type Preview = { id: string; position: number; x: number; y: number; width: number; height: number };
+type DragCard = { id: string; x: number; y: number; width: number; height: number };
+type Preview = DragCard & { position: number };
+type Landing = DragCard & { target?: DOMRect };
+
+const dragCardAt = (drag: Gesture): DragCard => ({
+  id: drag.id, x: drag.box.left + drag.x - drag.startX, y: drag.box.top + drag.y - drag.startY,
+  width: drag.box.width, height: drag.box.height,
+});
 
 function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   lane: Lane; editing: boolean; saved?: string[]; onSave: (order: string[], message: string) => void;
@@ -26,11 +34,20 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const gesture = useRef<Gesture | null>(null);
   const frame = useRef(0);
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [landing, setLanding] = useState<Landing | null>(null);
   const byId = new Map(cells.map((cell) => [cell.id, cell]));
   const order = resolveRibbonLane(cells.map(({ id }) => id), saved);
   const displayed = preview ? moveRibbonItem(order, preview.id, preview.position) : order;
+  const floating = preview ?? landing;
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useLayoutEffect(() => {
+    if (!landing) return;
+    if (!editing) { setLanding(null); return; }
+    if (landing.target) return;
+    const cell = Array.from(root.current?.children ?? []).find((item) => item.getAttribute('data-ribbon-cell') === landing.id);
+    setLanding(cell ? { ...landing, target: cell.getBoundingClientRect() } : null);
+  }, [editing, landing]);
 
   const getScroller = () => root.current?.closest<HTMLElement>('.note-ribbon-scroll');
   const positionAt = (drag: Gesture) => {
@@ -49,10 +66,8 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const paint = (drag: Gesture) => {
     const position = positionAt(drag);
     setPreview((previous) => ({
-      id: drag.id,
+      ...dragCardAt(drag),
       position: position ?? previous?.position ?? order.indexOf(drag.id),
-      x: drag.box.left + drag.x - drag.startX, y: drag.box.top + drag.y - drag.startY,
-      width: drag.box.width, height: drag.box.height,
     }));
   };
   const scrollAtEdge = () => {
@@ -76,6 +91,7 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     const box = event.currentTarget.closest('.note-grid-cell')?.getBoundingClientRect();
     if (!laneBody || !viewport || !box || event.button !== 0 || gesture.current) return;
     event.preventDefault();
+    setLanding(null);
     // Measure the original slots once so a sliding neighbor cannot flip the target back.
     const slots = Array.from(laneBody.querySelectorAll('[data-ribbon-handle]'), (handle) => {
       const rect = handle.getBoundingClientRect();
@@ -113,8 +129,10 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const finish = (event: PointerEvent<HTMLDivElement>) => {
     const drag = gesture.current;
     if (!drag || drag.pointer !== event.pointerId) return;
-    const position = drag.started && event.type === 'pointerup'
-      ? positionAt({ ...drag, x: event.clientX, y: event.clientY }) : null;
+    const released = event.type === 'pointerup';
+    const last = released ? { ...drag, x: event.clientX, y: event.clientY } : drag;
+    const position = drag.started && released ? positionAt(last) : null;
+    if (drag.started && released && animate) setLanding(dragCardAt(last));
     cancel();
     if (position !== null) save(drag.id, position);
   };
@@ -122,6 +140,7 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     if (event.key === 'Escape') {
       event.preventDefault();
       cancel();
+      setLanding(null);
       endEditing();
       return;
     }
@@ -143,21 +162,23 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     {displayed.map((id, index) => {
       const item = byId.get(id)!;
       return <motion.div key={id} className="note-grid-cell" data-ribbon-cell={id}
-        data-moving={preview?.id === id} layout={editing && animate && preview?.id !== id ? 'position' : false}
-        transition={{ layout: { duration: .18, ease: 'easeOut' } }}
+        data-moving={preview?.id === id} layout={editing && animate && floating?.id !== id ? 'position' : false}
+        transition={{ layout: springs.layout }}
         style={{ gridColumn: flow === 'horizontal' ? 'span ' + (item.span ?? 1) : undefined }}>
         <div className="note-grid-control">{item.control}</div>
         {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
           aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
-          onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)}>
-          <GripHorizontal size={16} aria-hidden="true" />
-        </button>}
+          onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)} />}
       </motion.div>;
     })}
-    {preview && createPortal(<div className="note-ribbon-dragged" aria-hidden="true"
-      style={{ left: preview.x, top: preview.y, minWidth: preview.width, minHeight: preview.height }}>
-      <GripHorizontal size={15} />{byId.get(preview.id)?.label}
-    </div>, document.body)}
+    {editing && floating && createPortal(<motion.div className="note-ribbon-dragged" aria-hidden="true"
+      data-landing={!!landing?.target} initial={false}
+      style={{ left: floating.x, top: floating.y, width: floating.width, height: floating.height }}
+      animate={landing?.target ? { x: landing.target.left - landing.x, y: landing.target.top - landing.y, opacity: 0 } : undefined}
+      transition={{ duration: .24, ease: [.2, .75, .3, 1] }}
+      onAnimationComplete={() => setLanding((current) => current === landing ? null : current)}>
+      <span>{byId.get(floating.id)?.label}</span>
+    </motion.div>, document.body)}
   </div>;
 }
 
@@ -191,7 +212,7 @@ export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; ext
     <div ref={actions} className="note-ribbon-actions">
       <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}
         aria-pressed={editing} onMouseDown={(event) => event.preventDefault()}
-        onClick={() => setEditing(!editing)}>{editing ? <Check size={18} /> : <Grip size={18} />}</IconButton>
+        onClick={() => setEditing(!editing)}>{editing ? <Check size={18} /> : <ArrowLeftRight size={18} />}</IconButton>
     </div>
     <span role="status" className="visually-hidden">{announcement}</span>
   </>;
