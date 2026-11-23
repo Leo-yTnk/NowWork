@@ -1,4 +1,5 @@
 import { useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, ArrowDown, ArrowLeft, ArrowUp, Bold, Clipboard, Code2, Columns2, Copy, Eraser, Highlighter, IndentDecrease, IndentIncrease, Merge, Rows2, Split,
   ImagePlus, Italic, LayoutGrid, Link2, List, ListChecks, ListOrdered, Minus, Plus, Quote, Redo2, Scissors, SlidersHorizontal, Strikethrough, Subscript, Superscript, Table2, Trash2, Underline, Undo2, Type } from 'lucide-react';
@@ -47,7 +48,9 @@ function selectionBeforeBlur(view: EditorView): Selection {
     ? new TextSelection(anchor, head) : selection;
 }
 
-export function RichTextEditor({ content, onChange }: { content: JSONContent; onChange: (content: JSONContent) => void }) {
+export function RichTextEditor({ content, onChange, widthSettings }: {
+  content: JSONContent; onChange: (content: JSONContent) => void; widthSettings: HTMLDivElement | null;
+}) {
   const [toolPanel, setToolPanel] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [invalidLink, setInvalidLink] = useState(false);
@@ -339,13 +342,11 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     </div>] },
   ]
     : contextualBlock ? [{ label: 'Elemento selecionado', rows: [group([propertyAction])] }] : [];
-  const supplemental: ToolGroup[] = [{ label: 'Página', rows: [pageWidth] }];
   const textActions = [...marks, ...colorActions, clear];
   const categories: ToolCategory[] = [
     { id: 'format', label: 'Texto', icon: <Type size={19} />, groups: [
       { label: 'Estilo e fonte', rows: [<>{styleControl}{fontSelect}{weightField}{sizeInput}</>, group(textActions)] },
       { label: 'Listas e parágrafo', rows: [group(lists), <>{group(align)}{lineHeight}</>, group(blocks.slice(0, 2))] },
-      ...supplemental,
       { label: 'Área de transferência', rows: [group(clipboard)] },
     ] },
     ...(context.length ? [{ id: 'context', label: tools.table ? 'Tabela' : tools.selectedBlock === 'collection' ? 'Conjunto' : 'Imagem',
@@ -419,13 +420,14 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       } catch (error) { notify(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.'); }
     }} />
     <NotebookToolbar simple={{ history: group(history), text: <>{styleControl}{weightField}{group(marks.slice(0, 3))}</>,
-      lists: group(lists), insertIcon: <Plus size={21} /> }} ribbon={ribbon} insertion={insertion} reorderActions={group(blocks.slice(2))} supplemental={supplemental} categories={categories} panel={toolPanel} setPanel={setToolPanel} extra={extra} mobile={mobile}
+      lists: group(lists), insertIcon: <Plus size={21} /> }} ribbon={ribbon} insertion={insertion} reorderActions={group(blocks.slice(2))} categories={categories} panel={toolPanel} setPanel={setToolPanel} extra={extra} mobile={mobile}
       clearExtra={() => { setPopover(null); setLink(null); }}
       dismissKeyboard={() => {
         const active = document.activeElement;
         if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) active.blur();
         else editor.commands.blur();
       }} />
+    {widthSettings && createPortal(pageWidth, widthSettings)}
     <EditorContent editor={editor} className="document-content" data-width={tools.pageWidth}
       style={editorTypographyVariables(data.profile.editorTypography) as CSSProperties} />
   </div>;

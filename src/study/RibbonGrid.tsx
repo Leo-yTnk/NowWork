@@ -215,7 +215,7 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   </div>;
 }
 
-export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; extra: ReactNode }) {
+export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; extra?: ReactNode }) {
   const { data, updateProfile } = useApp();
   const reduce = useReducedMotion();
   const [editing, setEditing] = useState(false);
@@ -240,7 +240,7 @@ export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; ext
             setAnnouncement(message);
           }} />)}
       </div>)}
-      <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Mais ferramentas">{extra}</div>
+      {extra && <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Ferramentas contextuais">{extra}</div>}
     </div>
     <div ref={actions} className="note-ribbon-actions">
       <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}

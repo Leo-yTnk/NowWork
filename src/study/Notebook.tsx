@@ -70,6 +70,7 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
 }) {
   const app = useApp();
   const [title, setTitle] = useState('');
+  const [widthSettings, setWidthSettings] = useState<HTMLDivElement | null>(null);
   const [rename, setRename] = useState<{ id: string; title: string } | null>(null);
   const { mobile, pagesOpen } = pageControls ?? {};
   const sidebar = useRef<HTMLElement>(null);
@@ -150,7 +151,8 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
     </div>
     <div className="document-writing-area" inert={mobile && pagesOpen}>
       <Suspense fallback={<p role="status" className="document-loading nw-muted">Abrindo editor…</p>}>
-        <RichTextEditor key={note.id} content={note.content || fromBlocks(note.blocks)} onChange={(content) => app.updateNote(note.id, { content })} />
+        <RichTextEditor key={note.id} content={note.content || fromBlocks(note.blocks)}
+          widthSettings={widthSettings} onChange={(content) => app.updateNote(note.id, { content })} />
       </Suspense>
     </div>
     {renameSheet}
@@ -168,6 +170,7 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
               onChange={(toolbarMode) => app.updateProfile({ toolbarMode })}
               options={[{ id: 'simple', label: 'Simplificado' }, { id: 'advanced', label: 'Avançado' }]} />
           </div>
+          <div ref={setWidthSettings} />
           <EditorTypographySettings />
         </section>
         <div><Button variant="danger" icon={<Trash2 size={16} />} onClick={() => {

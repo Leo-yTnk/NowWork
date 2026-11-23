@@ -66,9 +66,9 @@ function ToolGroups({ groups }: { groups: ToolGroup[] }) {
   </div>;
 }
 
-export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, supplemental, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
+export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
   simple: { history: ReactNode; text: ReactNode; lists: ReactNode; insertIcon: ReactNode };
-  ribbon: RibbonSection[]; insertion: ReactNode; reorderActions: ReactNode; supplemental: ToolGroup[]; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
+  ribbon: RibbonSection[]; insertion: ReactNode; reorderActions: ReactNode; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
   dismissKeyboard: () => void; clearExtra: () => void;
 }) {
   const [simpleCategory, setSimpleCategory] = useState('format');
@@ -140,7 +140,7 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, sup
         {categories.map(({ id, label }) => <Button key={id} variant="ghost" size="sm" aria-pressed={id === selected.id}
           onMouseDown={(event) => event.preventDefault()} onClick={() => setSimpleCategory(id)}>{label}</Button>)}
       </div>}
-      <ToolGroups groups={advanced && panel === 'more' ? supplemental : selected.groups} />
+      <ToolGroups groups={selected.groups} />
     </>;
 
   const insert = <IconButton label={panel === 'insert' ? 'Voltar às ferramentas' : 'Inserir'} aria-pressed={panel === 'insert'} onMouseDown={(event) => event.preventDefault()}
@@ -151,7 +151,7 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, sup
   const bar = <div ref={root} className={mobile ? 'note-controls note-dock' : 'note-controls note-toolbar'}
     style={mobile && inset ? { bottom: inset + 8, '--note-keyboard-inset': inset + 'px' } as CSSProperties : undefined}>
     <div className={'note-command-bar' + (advanced ? ' note-command-advanced' : '')} role="group" aria-label="Ferramentas do caderno">
-      {advanced ? <RibbonGrid sections={ribbon} extra={<>{more}{context && categoryButton(context)}</>} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
+      {advanced ? <RibbonGrid sections={ribbon} extra={context && categoryButton(context)} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>
       : <div className="note-command-scroll">
         <div className="note-command-group">{simple.history}</div>
         {compact ? <div className="note-command-group">
