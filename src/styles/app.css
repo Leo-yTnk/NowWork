@@ -13,7 +13,7 @@ a { color: inherit; }
 #root { min-height: 100vh; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .subtle { color: var(--tertiary); font-weight: 450; }
-.is-overdue { color: var(--danger) !important; }
+.is-overdue { color: var(--danger); }
 .brand { font-size: 27px; font-weight: 780; letter-spacing: -.095em; line-height: 1; color: var(--ink-strong); user-select: none; }
 .brand span { color: var(--accent); }
 .screen { display: flex; flex-direction: column; gap: 22px; }
@@ -26,7 +26,7 @@ p { line-height: 1.55; }
 .demo-pill { border: 1px dashed var(--line); background: transparent; }
 
 /* Agora */
-.assistant-card { padding: 23px 24px; display: flex; gap: 15px; align-items: flex-start; background: var(--surface-raised); }
+.assistant-card { padding: 23px 24px; display: flex; gap: 15px; align-items: flex-start; --surface-fill: var(--surface-raised); }
 .assistant-avatar { flex: 0 0 36px; height: 36px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: var(--radius-sm); }
 .assistant-name { font-size: 12px; color: var(--ink); font-weight: 760; margin: 2px 0 7px; }
 .assistant-name span { font-weight: 440; color: var(--tertiary); }
@@ -92,6 +92,10 @@ p { line-height: 1.55; }
 .list-alert { font-size: 11px; color: var(--amber); margin: 7px 0 0; }
 .list-controls { display: flex; align-items: center; gap: 8px; }
 .search-control { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius-sm); color: var(--tertiary); padding: 0 10px; height: 37px; }
+.search-control:has(input:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--accent);
+  outline-offset: var(--focus-outline-width);
+}
 .search-control input { border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 12px; width: 105px; }
 .list-controls .ds-select { width: auto; max-width: 152px; }
 .record-list { display: flex; flex-direction: column; gap: 10px; }

@@ -16,7 +16,6 @@
 .collection-block .ds-toolbar, .collection-form .ds-toolbar { gap: var(--space-1); }
 .collection-form { display: grid; gap: var(--space-3); min-width: 0; }
 .collection-form textarea { min-height: 90px; resize: vertical; }
-.collection-form input[type='range'] { width: 100%; accent-color: var(--accent); }
 .collection-form input[type='checkbox'] { accent-color: var(--accent); }
 .collection-form .toggle-row { min-height: 42px; }
 .collection-form small[role='alert'] { color: var(--danger); }
@@ -75,7 +74,7 @@
 @supports (field-sizing: content) {
   .collection-card-description { resize: none; }
 }
-.collection-card :is(input, textarea):focus-visible { outline: 1px solid var(--line); outline-offset: 1px; }
+.collection-card :is(input, textarea):focus-visible { outline: var(--focus-outline-width) solid var(--accent); outline-offset: 1px; }
 @media (hover: none) {
   .collection-card-actions .card-grip { display: none; }
   .collection-card-actions .ds-icon-button { min-width: 44px; min-height: 44px; }

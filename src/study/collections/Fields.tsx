@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { Select } from '../../components/Select';
+import { NumberSlider } from '../../components/NumberSlider';
 import { ElasticSheet } from '../../components/ElasticSheet';
 import { Button, IconButton, Toolbar } from '../../components/ui';
 import { importLocalImage } from '../../lib/localImages';
@@ -22,9 +23,8 @@ export const orientations = [['vertical', 'Vertical'], ['horizontal', 'Horizonta
 export function Range({ label, value, min, max, unit, onChange }: {
   label: string; value: number; min: number; max: number; unit: string; onChange: (value: number) => void;
 }) {
-  return <label className="field-label">{label} <output>{value}{unit}</output>
-    <input aria-label={label} type="range" min={min} max={max} value={value} onChange={(event) => onChange(event.target.valueAsNumber)} />
-  </label>;
+  return <NumberSlider label={label + ' (' + unit.trim() + ')'} value={value} min={min} max={max}
+    describe={(current) => current + unit} onChange={onChange} />;
 }
 
 export function MoveControls({ subject, index, count, move }: {

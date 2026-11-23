@@ -1,6 +1,6 @@
 /* NowWork | Design tokens: single source of truth */
 :root {
-  --font-body: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-body: 'Manrope Variable', system-ui, sans-serif;
   --font-heading: var(--font-body);
   font-family: var(--font-body);
   font-weight: 400;
@@ -71,6 +71,7 @@
   --space-16: 64px;
   --control-height: 42px;
   --creation-button-width: 144px;
+  --layer-popup: 110;
   --popup-fill: color-mix(in srgb, var(--surface-raised) 85%, transparent);
   --popup-blur: blur(14px) saturate(125%);
   --popup-divider: color-mix(in srgb, var(--ink) 10%, transparent);

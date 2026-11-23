@@ -14,6 +14,7 @@
 .nw-dashboard { gap:24px; }
 .nw-welcome {
   --surface-fill: #242a38;
+  --surface-edge: transparent;
   --hero-overlay: linear-gradient(90deg, rgb(12 17 28 / 90%), rgb(12 17 28 / 74%) 44%, rgb(12 17 28 / 10%) 83%);
   display: grid;
   align-items: center;
@@ -236,7 +237,7 @@
 .subject-swatch svg { color: #111; background: #fff; border-radius: 50%; }
 .subject-icon-grid button { color: var(--tone-ink); background: var(--surface); }
 .subject-icon-grid button:hover, .subject-icon-grid button[aria-pressed='true'] { background: var(--tone); }
-.subject-icon-grid button[aria-pressed='true'], .subject-swatch[aria-pressed='true'] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.subject-icon-grid button[aria-pressed='true'], .subject-swatch[aria-pressed='true'] { outline: var(--focus-outline-width) solid var(--accent); outline-offset: 1px; }
 @media (max-width: 760px) {
   .today-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; gap: var(--space-3); }
   .today-next, .today-checklist { grid-row: auto; }
