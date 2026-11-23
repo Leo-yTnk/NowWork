@@ -76,7 +76,7 @@
 .nw-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; margin:15px 0; }
 .nw-days button { display:grid; justify-items:center; gap:5px; padding:8px 0 6px; min-height:63px; border:1px solid var(--control-border); border-radius:var(--radius-xs); color:var(--ink); background:var(--surface-soft); transition:background .18s,border-color .18s,color .18s; }
 .nw-days button[aria-current] { border-color:var(--accent); }
-.nw-days button[aria-pressed='true'] { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+.nw-days button[aria-pressed='true'] { background:var(--accent-solid); color:var(--accent-solid-ink); border-color:var(--accent-solid); }
 .nw-days span { font-size:10px;  }
 .nw-days strong { font-size:15px; }
 .nw-days i { width:5px; height:5px; border-radius:50%; }

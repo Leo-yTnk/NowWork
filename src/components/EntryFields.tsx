@@ -34,7 +34,7 @@ export function EntryFields({ value, onChange, showKind = true }: {
         <Select label="Matéria" value={value.subjectId || ''} onChange={(id) => change('subjectId', id || undefined)}
           options={[[ '', 'Sem matéria'], ...subjects.map(({ id, title }) => [id, title] as const)]} />
       </div>
-      <label className="field-label">Prazo <span className="subtle">(opcional)</span>
+      <label className="field-label"><span>Prazo <span className="subtle">(opcional)</span></span>
         <input type="date" value={asLocalDate(value.dueAt)} onChange={(e) => change('dueAt', dateToDeadline(e.target.value))} />
       </label>
       <div className="field-label">Duração estimada

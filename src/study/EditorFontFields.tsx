@@ -3,14 +3,14 @@ import { Button } from '../components/ui';
 import { Select } from '../components/Select';
 import { allowsWeight, editorFonts, editorWeightLabel, findEditorFont } from '../lib/editorTypography';
 
-export function FontSelect({ value, onChange, label = 'Fonte', returnFocus, mixed }: {
-  value: string; onChange: (value: string) => void; label?: string; returnFocus?: boolean; mixed?: boolean;
+export function FontSelect({ value, onChange, label = 'Fonte', returnFocus, mixed, animateValue }: {
+  value: string; onChange: (value: string) => void; label?: string; returnFocus?: boolean; mixed?: boolean; animateValue?: boolean;
 }) {
   const known = editorFonts.some(({ name }) => name === value);
   const options: [string, string][] = [['', 'Padrão']];
   if (value && !known) options.push([value, value]);
   options.push(...editorFonts.map(({ name }): [string, string] => [name, name]));
-  return <Select label={label} value={mixed ? 'ds-mixed-font' : value} options={options} displayValue={mixed ? 'Misto' : undefined} onChange={onChange} returnFocus={returnFocus} />;
+  return <Select label={label} value={mixed ? 'ds-mixed-font' : value} options={options} displayValue={mixed ? 'Misto' : undefined} onChange={onChange} returnFocus={returnFocus} animateValue={animateValue} />;
 }
 
 type EditorFont = NonNullable<ReturnType<typeof findEditorFont>>;

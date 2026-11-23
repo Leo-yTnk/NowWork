@@ -24,10 +24,12 @@
   --tertiary: #706c67;
   --line: #d9d6d1;
   --stitch: #cfcbc5;
-  --accent: #604a93;
+  --accent-solid: #604a93;
+  --accent-solid-ink: #ffffff;
+  --accent: var(--accent-solid);
   --accent-dark: #4d367e;
   --accent-soft: #eee8f7;
-  --accent-contrast: #ffffff;
+  --accent-contrast: var(--accent-solid-ink);
   --amber: #805127;
   --amber-soft: #f7eee1;
   --lavender: var(--accent);
@@ -74,6 +76,8 @@
   --layer-popup: 110;
   --popup-fill: color-mix(in srgb, var(--surface-raised) 85%, transparent);
   --popup-blur: blur(14px) saturate(125%);
+  --select-popup-fill: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  --select-popup-blur: blur(3px);
   --popup-divider: color-mix(in srgb, var(--ink) 10%, transparent);
   --text-caption: .75rem;
   --text-control: .875rem;

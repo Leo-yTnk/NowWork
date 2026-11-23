@@ -13,6 +13,7 @@ import { blockViews, collectionIcons, editDocumentBlock } from './collections/Do
 import { Options } from './collections/Fields';
 import { Button, IconButton, Toolbar } from '../components/ui';
 import { Select } from '../components/Select';
+import { ControlValue } from '../components/ControlValue';
 import { documentExtensions, safeLink } from '../lib/documents';
 import { copyNoteSelection, pasteNoteSelection } from '../lib/noteClipboard';
 import { useApp } from '../state/AppState';
@@ -237,7 +238,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     { label: 'Copiar', icon: <Copy size={17} />, disabled: !tools.selected, run: () => copy(false) },
     { label: 'Recortar', icon: <Scissors size={17} />, disabled: !tools.selected, run: () => copy(true) },
   ];
-  const styleControl = <Select label="Estilo" value={String(tools.level)} options={styleOptions}
+  const styleControl = <Select animateValue label="Estilo" value={String(tools.level)} options={styleOptions}
     displayValue={tools.level === 'Misto' ? 'Misto' : undefined} disabled={!tools.canStyle} returnFocus={false}
     onChange={(value) => {
       const level = Number(value) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -249,7 +250,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     }} />;
   const fontFamily = tools.fontFamily === 'Misto' ? '' : tools.fontFamily ?? '';
   const inlineFont = findEditorFont(fontFamily);
-  const fontSelect = <FontSelect returnFocus={false} value={inlineFont?.name ?? fontFamily} mixed={tools.fontFamily === 'Misto'} onChange={(name) => {
+  const fontSelect = <FontSelect animateValue returnFocus={false} value={inlineFont?.name ?? fontFamily} mixed={tools.fontFamily === 'Misto'} onChange={(name) => {
     const font = findEditorFont(name);
     const chain = focus();
     (font ? chain.setFontFamily(font.family) : chain.unsetFontFamily()).run();
@@ -258,7 +259,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     ? weightOptions : [...weightOptions, tools.weight].sort((a, b) => a - b);
   const weightChoices: [string, string][] = [['', 'Padrão'], ...availableWeights.map((weight): [string, string] =>
     [String(weight), editorWeightLabel(weight)])];
-  const weightField = <Select label="Peso da fonte" value={String(tools.weight)} options={weightChoices}
+  const weightField = <Select animateValue label="Peso da fonte" value={String(tools.weight)} options={weightChoices}
     displayValue={tools.weight === 'Misto' ? 'Misto' : undefined} disabled={!tools.canWeight} returnFocus={false}
     onChange={(value) => {
       setPopover(null);
@@ -280,12 +281,18 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
     const chain = refocus ? focus() : selectionChain();
     (value ? chain.setFontSize(Number(value) + 'px') : chain.unsetFontSize()).run();
   };
-  const sizeInput = <input className="ds-input note-size-input" aria-label="Tamanho da fonte" title="Tamanho em pixels"
-    inputMode="decimal" data-mixed={mixedSize} placeholder={mixedSize ? 'Misto' : 'Auto'} value={sizeDraft ?? activeSize} onChange={(event) => setSizeDraft(event.target.value)}
-    onBlur={() => applySize(false)} onKeyDown={(event) => {
-      if (event.key === 'Enter') { event.preventDefault(); applySize(true); }
-      if (event.key === 'Escape') { event.preventDefault(); setSizeDraft(null); }
-    }} />;
+  const sizePlaceholder = mixedSize ? 'Misto' : 'Auto';
+  const sizeInput = <div className="note-size-field">
+    <input className="ds-input note-size-input" aria-label="Tamanho da fonte" title="Tamanho em pixels"
+      inputMode="decimal" data-mixed={mixedSize} placeholder={sizePlaceholder} value={sizeDraft ?? activeSize} onChange={(event) => setSizeDraft(event.target.value)}
+      onBlur={() => applySize(false)} onKeyDown={(event) => {
+        if (event.key === 'Enter') { event.preventDefault(); applySize(true); }
+        if (event.key === 'Escape') { event.preventDefault(); setSizeDraft(null); }
+      }} />
+    <span className="note-size-value" data-placeholder={!activeSize && !mixedSize}>
+      <ControlValue value={activeSize || sizePlaceholder} />
+    </span>
+  </div>;
   const colorActions: EditorAction[] = [
     { label: 'Cor do texto', icon: <span className="note-ink-icon" style={{ borderColor: tools.textStyle.color || undefined }}>A</span>, pressed: popover === 'ink', run: () => toggle('ink') },
     { label: 'Cor de fundo', icon: <Highlighter size={18} />, pressed: tools.highlight || popover === 'highlight', run: () => toggle('highlight') },
@@ -306,7 +313,7 @@ export function RichTextEditor({ content, onChange }: { content: JSONContent; on
       const view = root instanceof Element ? root.matches('[data-node-view-wrapper]') ? root : root.querySelector('[data-node-view-wrapper]') : null;
       view?.dispatchEvent(new Event(editDocumentBlock));
     } };
-  const lineHeight = <Select label="Altura da linha" returnFocus={false} value={tools.textStyle.lineHeight ?? ''}
+  const lineHeight = <Select animateValue label="Altura da linha" returnFocus={false} value={tools.textStyle.lineHeight ?? ''}
     options={[[ '', 'Padrão'], ['1', 'Simples'], ['1.25', '1,25'], ['1.5', '1,5'], ['2', 'Duplo']]}
     onChange={(value) => (value ? focus().setLineHeight(value) : focus().unsetLineHeight()).run()} />;
   const pageWidth = <Options label="Largura do conteúdo" value={tools.pageWidth}

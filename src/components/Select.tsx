@@ -1,12 +1,13 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import * as Primitive from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
+import { ControlValue } from './ControlValue';
 
 type SelectOption<T extends string | number> = readonly [value: T, label: string];
 
-export function Select<T extends string | number>({ label, value, options, onChange, displayValue, disabled, returnFocus = true }: {
+export function Select<T extends string | number>({ label, value, options, onChange, displayValue, disabled, returnFocus = true, animateValue = false }: {
   label: string; value: T; options: readonly SelectOption<T>[];
-  onChange: (value: T) => void; displayValue?: string; disabled?: boolean; returnFocus?: boolean;
+  onChange: (value: T) => void; displayValue?: string; disabled?: boolean; returnFocus?: boolean; animateValue?: boolean;
 }) {
   const selected = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -15,6 +16,9 @@ export function Select<T extends string | number>({ label, value, options, onCha
     if (nextOpen) selected.current = false;
     setOpen(nextOpen);
   };
+
+  const optionLabel = animateValue ? options.find(([key]) => key === value)?.[1] : undefined;
+  const shownValue = displayValue ?? optionLabel;
 
   return <Primitive.Root disabled={disabled} open={open} value={String(value) || 'ds-empty'} onValueChange={(raw) => {
     const option = options.find(([key]) => (String(key) || 'ds-empty') === raw);
@@ -32,10 +36,11 @@ export function Select<T extends string | number>({ label, value, options, onCha
         event.preventDefault();
         if (!event.ctrlKey) changeOpen(!open);
       }}>
-      <Primitive.Value>{displayValue}</Primitive.Value><Primitive.Icon asChild><ChevronDown size={13} aria-hidden="true" /></Primitive.Icon>
+      <Primitive.Value>{animateValue && shownValue !== undefined ? <ControlValue value={shownValue} /> : displayValue}</Primitive.Value>
+      <Primitive.Icon asChild><ChevronDown size={13} aria-hidden="true" /></Primitive.Icon>
     </Primitive.Trigger>
     <Primitive.Portal>
-      <Primitive.Content className="ds-select-content" style={{ '--ds-select-rows': options.length } as CSSProperties} position="popper" align="start" sideOffset={6} collisionPadding={8}
+      <Primitive.Content className="ds-select-content" inert={!open} style={{ '--ds-select-rows': options.length } as CSSProperties} position="popper" align="start" sideOffset={6} collisionPadding={8}
         onPointerDownOutside={(event) => {
           // Let a click on the trigger close the menu after the pointer is released.
           const target = event.detail.originalEvent.target;
