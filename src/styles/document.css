@@ -263,7 +263,7 @@ html:has(.nw-shell[data-notebook-page]) {
 .note-ribbon-scroll {
   --note-grid-cell: 38px;
   --note-grid-height: 38px;
-  --note-grip-height: 0px;
+
   display: flex;
   flex: 1;
   min-width: 0;
@@ -272,7 +272,7 @@ html:has(.nw-shell[data-notebook-page]) {
   scrollbar-width: thin;
   padding-block: var(--space-2);
 }
-.note-ribbon-scroll[data-editing='true'] { --note-grip-height: 20px; }
+
 .note-ribbon-section {
   flex: none;
   display: grid;
@@ -293,32 +293,36 @@ html:has(.nw-shell[data-notebook-page]) {
 }
 .note-ribbon-paste.btn:hover:not(:disabled) { background: var(--accent-soft); }
 .note-ribbon-lane {
-  --note-grid-row: calc(var(--note-grid-height) + var(--note-grip-height));
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--note-grid-cell);
-  grid-template-rows: var(--note-grid-row);
+  grid-template-rows: var(--note-grid-height);
   gap: var(--space-1);
 }
 .note-ribbon-lane:is([data-flow='vertical'], [data-flow='matrix']) {
-  grid-template-rows: repeat(2, var(--note-grid-row));
+  grid-template-rows: repeat(2, var(--note-grid-height));
 }
-.note-grid-cell {
-  display: grid;
-  grid-template-rows: var(--note-grid-height) var(--note-grip-height);
-  min-width: 0;
-  border-radius: var(--radius-sm);
-  transition: opacity var(--time-quick) var(--ease-standard), background-color var(--time-quick) var(--ease-standard);
+.note-grid-cell { min-width: 0; border-radius: var(--radius-sm); }
+.note-grid-item { position: relative; height: 100%; border-radius: inherit; }
+.note-grid-cell[data-moving='true'] { background: var(--accent-soft); }
+.note-grid-cell[data-moving='true'] .note-grid-item {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
 }
-.note-grid-cell[data-moving='true'] { opacity: .24; background: var(--accent-soft); }
-.note-grid-control { min-width: 0; }
+.note-grid-control { min-width: 0; height: 100%; }
 .note-grid-control > .btn, .note-grid-control > .ds-select,
 .note-grid-control > .note-size-field, .note-grid-control .note-size-input { width: 100%; height: 100%; }
 .note-grid-control .ds-select { padding-inline: var(--space-3); font-size: var(--text-caption); }
 .note-grid-control .ds-select > svg { width: 11px; }
 .note-grid-grip {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
   display: grid;
   place-items: center;
+  width: 17px;
+  height: 14px;
   padding: 0;
   color: var(--secondary);
   background: transparent;
@@ -329,37 +333,16 @@ html:has(.nw-shell[data-notebook-page]) {
 }
 .note-grid-grip::after {
   content: '';
-  inline-size: 14px;
-  block-size: 2px;
-  border-radius: 999px;
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: 50%;
   background: currentColor;
 }
 .note-grid-grip:hover, .note-grid-grip:active { color: var(--accent); background: var(--accent-soft); }
 .note-grid-grip:active { cursor: grabbing; }
-.note-ribbon-dragged {
-  position: fixed;
-  z-index: var(--layer-popup);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: var(--space-1);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--surface-raised);
-  color: var(--ink);
-  box-shadow: var(--shadow-card);
-  font-size: var(--text-caption);
-  pointer-events: none;
+@media (pointer: coarse) {
+  .note-grid-grip { width: 23px; height: 18px; }
 }
-.note-ribbon-dragged > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-@media (prefers-reduced-motion: reduce) {
-  .note-grid-cell { transition: none; }
-}
-:root[data-reduce-motion='true'] .note-grid-cell { transition: none; }
 .note-size-field { --note-size-inline: var(--space-3); }
 .note-size-field {
   --note-size-inline: var(--space-2);
@@ -544,7 +527,7 @@ html:has(.nw-shell[data-notebook-page]) {
   .note-dock .note-command-advanced { padding-inline: 0; }
   .note-ribbon-scroll { --note-grid-cell: 44px; --note-grid-height: 44px; padding-block: var(--space-1); }
   .note-ribbon-section[data-section='font'] { --note-grid-cell: 44px; }
-  .note-ribbon-scroll[data-editing='true'] { --note-grip-height: 26px; }
+
   html:has(.note-command-advanced) { scroll-padding-bottom: calc(115px + env(safe-area-inset-bottom)); }
   .document-editor:has(.note-command-advanced) .tiptap,
   body:has(.note-dock .note-command-advanced) .document-content .tiptap { padding-bottom: calc(126px + env(safe-area-inset-bottom)); }

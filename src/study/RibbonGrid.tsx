@@ -1,9 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, useReducedMotion } from 'motion/react';
+import { useReducedMotion } from 'motion/react';
 import { ArrowLeftRight, Check } from 'lucide-react';
 import { IconButton } from '../components/ui';
-import { springs } from '../lib/motion';
 import { moveRibbonItem, resolveRibbonLane } from '../lib/ribbonOrder';
 import { useApp } from '../state/AppState';
 
@@ -16,14 +14,67 @@ type Gesture = {
   scrollStart: number; started: boolean;
   box: DOMRect; slots: { x: number; y: number }[];
 };
-type DragCard = { id: string; x: number; y: number; width: number; height: number };
-type Preview = DragCard & { position: number };
-type Landing = DragCard & { target?: DOMRect };
+type Preview = { id: string; position: number; x: number; y: number };
+type Slot = { x: number; y: number; moving: boolean };
 
-const dragCardAt = (drag: Gesture): DragCard => ({
-  id: drag.id, x: drag.box.left + drag.x - drag.startX, y: drag.box.top + drag.y - drag.startY,
-  width: drag.box.width, height: drag.box.height,
-});
+const translate = (x: number, y: number) => 'translate3d(' + x + 'px,' + y + 'px,0)';
+
+function useRibbonMovement(root: { current: HTMLDivElement | null }, preview: Preview | null, animate: boolean) {
+  const slots = useRef(new Map<string, Slot>());
+  const running = useRef(new Map<string, Animation>());
+
+  useLayoutEffect(() => {
+    const next = new Map<string, Slot>();
+    const updates: { id: string; item: HTMLElement; x: number; y: number; moving: boolean; wasMoving: boolean }[] = [];
+    for (const cell of Array.from(root.current?.children ?? []) as HTMLElement[]) {
+      const id = cell.dataset.ribbonCell;
+      const item = cell.firstElementChild as HTMLElement;
+      if (!id || !item) continue;
+      const before = slots.current.get(id);
+      const position = { x: cell.offsetLeft, y: cell.offsetTop, moving: preview?.id === id };
+      next.set(id, position);
+      if (position.moving && preview) {
+        const box = cell.getBoundingClientRect();
+        updates.push({ id, item, x: preview.x - box.left, y: preview.y - box.top, moving: true, wasMoving: true });
+      } else if (before && (before.moving || before.x !== position.x || before.y !== position.y || (!animate && running.current.has(id)))) {
+        // Preserve the on-screen position even if the previous slide is still in flight.
+        const box = cell.getBoundingClientRect();
+        const visual = item.getBoundingClientRect();
+        updates.push({
+          id, item, x: before.x - position.x + visual.left - box.left,
+          y: before.y - position.y + visual.top - box.top, moving: false, wasMoving: before.moving,
+        });
+      }
+    }
+    slots.current = next;
+
+    for (const { id, item, x, y, moving, wasMoving } of updates) {
+      running.current.get(id)?.cancel();
+      running.current.delete(id);
+      item.style.transform = moving ? translate(x, y) : '';
+      item.style.zIndex = moving ? '2' : '';
+      if (moving || !animate || Math.hypot(x, y) < 1) continue;
+      if (wasMoving) item.style.zIndex = '2';
+      const animation = item.animate([
+        { transform: translate(x, y) },
+        { transform: translate(0, 0) },
+      ], { duration: 280, easing: 'cubic-bezier(.2,.75,.3,1)' });
+      running.current.set(id, animation);
+      animation.onfinish = () => {
+        item.style.zIndex = '';
+        running.current.delete(id);
+      };
+    }
+  });
+
+  useEffect(() => {
+    const animations = running.current;
+    return () => {
+      animations.forEach((animation) => animation.cancel());
+      animations.clear();
+    };
+  }, []);
+}
 
 function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   lane: Lane; editing: boolean; saved?: string[]; onSave: (order: string[], message: string) => void;
@@ -34,31 +85,23 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const gesture = useRef<Gesture | null>(null);
   const frame = useRef(0);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [landing, setLanding] = useState<Landing | null>(null);
   const byId = new Map(cells.map((cell) => [cell.id, cell]));
   const order = resolveRibbonLane(cells.map(({ id }) => id), saved);
   const displayed = preview ? moveRibbonItem(order, preview.id, preview.position) : order;
-  const floating = preview ?? landing;
-
+  useRibbonMovement(root, preview, editing && animate);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
-  useLayoutEffect(() => {
-    if (!landing) return;
-    if (!editing) { setLanding(null); return; }
-    if (landing.target) return;
-    const cell = Array.from(root.current?.children ?? []).find((item) => item.getAttribute('data-ribbon-cell') === landing.id);
-    setLanding(cell ? { ...landing, target: cell.getBoundingClientRect() } : null);
-  }, [editing, landing]);
 
   const getScroller = () => root.current?.closest<HTMLElement>('.note-ribbon-scroll');
   const positionAt = (drag: Gesture) => {
     const viewport = getScroller();
     const bounds = root.current?.getBoundingClientRect();
     if (!viewport || !bounds) return null;
-    const dx = viewport.scrollLeft - drag.scrollStart;
+    const dx = viewport.scrollLeft - drag.scrollStart + drag.box.right - drag.startX;
+    const dy = drag.box.top - drag.startY;
     if (drag.x < bounds.left || drag.x > bounds.right || drag.y < bounds.top || drag.y > bounds.bottom) return null;
     const distance = (slot: Gesture['slots'][number]) => {
       const x = flow === 'vertical' ? 0 : drag.x + dx - slot.x;
-      const y = flow === 'horizontal' ? 0 : drag.y - slot.y;
+      const y = flow === 'horizontal' ? 0 : drag.y + dy - slot.y;
       return x * x + y * y;
     };
     return drag.slots.reduce((best, slot, index) => distance(slot) < distance(drag.slots[best]) ? index : best, 0);
@@ -66,7 +109,7 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const paint = (drag: Gesture) => {
     const position = positionAt(drag);
     setPreview((previous) => ({
-      ...dragCardAt(drag),
+      id: drag.id, x: drag.box.left + drag.x - drag.startX, y: drag.box.top + drag.y - drag.startY,
       position: position ?? previous?.position ?? order.indexOf(drag.id),
     }));
   };
@@ -88,14 +131,13 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
   const start = (event: PointerEvent<HTMLButtonElement>, id: string) => {
     const laneBody = root.current;
     const viewport = getScroller();
-    const box = event.currentTarget.closest('.note-grid-cell')?.getBoundingClientRect();
+    const box = event.currentTarget.closest('.note-grid-item')?.getBoundingClientRect();
     if (!laneBody || !viewport || !box || event.button !== 0 || gesture.current) return;
     event.preventDefault();
-    setLanding(null);
-    // Measure the original slots once so a sliding neighbor cannot flip the target back.
-    const slots = Array.from(laneBody.querySelectorAll('[data-ribbon-handle]'), (handle) => {
-      const rect = handle.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    // Measure the original slots before any neighbors start sliding.
+    const slots = Array.from(laneBody.children, (cell) => {
+      const rect = cell.getBoundingClientRect();
+      return { x: rect.right, y: rect.top };
     });
     laneBody.setPointerCapture(event.pointerId);
     gesture.current = {
@@ -132,7 +174,6 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     const released = event.type === 'pointerup';
     const last = released ? { ...drag, x: event.clientX, y: event.clientY } : drag;
     const position = drag.started && released ? positionAt(last) : null;
-    if (drag.started && released && animate) setLanding(dragCardAt(last));
     cancel();
     if (position !== null) save(drag.id, position);
   };
@@ -140,7 +181,6 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     if (event.key === 'Escape') {
       event.preventDefault();
       cancel();
-      setLanding(null);
       endEditing();
       return;
     }
@@ -161,24 +201,17 @@ function RibbonLane({ lane, editing, saved, onSave, endEditing, animate }: {
     onPointerMove={track} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish}>
     {displayed.map((id, index) => {
       const item = byId.get(id)!;
-      return <motion.div key={id} className="note-grid-cell" data-ribbon-cell={id}
-        data-moving={preview?.id === id} layout={editing && animate && floating?.id !== id ? 'position' : false}
-        transition={{ layout: springs.layout }}
+      return <div key={id} className="note-grid-cell" data-ribbon-cell={id}
+        data-moving={preview?.id === id}
         style={{ gridColumn: flow === 'horizontal' ? 'span ' + (item.span ?? 1) : undefined }}>
-        <div className="note-grid-control">{item.control}</div>
-        {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
-          aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
-          onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)} />}
-      </motion.div>;
+        <div className="note-grid-item">
+          <div className="note-grid-control">{item.control}</div>
+          {editing && <button type="button" className="note-grid-grip" data-ribbon-handle={id}
+            aria-label={'Mover ' + item.label} title={'Arraste para mover ' + item.label}
+            onPointerDown={(event) => start(event, id)} onKeyDown={(event) => keyMove(event, id, index)} />}
+        </div>
+      </div>;
     })}
-    {editing && floating && createPortal(<motion.div className="note-ribbon-dragged" aria-hidden="true"
-      data-landing={!!landing?.target} initial={false}
-      style={{ left: floating.x, top: floating.y, width: floating.width, height: floating.height }}
-      animate={landing?.target ? { x: landing.target.left - landing.x, y: landing.target.top - landing.y, opacity: 0 } : undefined}
-      transition={{ duration: .24, ease: [.2, .75, .3, 1] }}
-      onAnimationComplete={() => setLanding((current) => current === landing ? null : current)}>
-      <span>{byId.get(floating.id)?.label}</span>
-    </motion.div>, document.body)}
   </div>;
 }
 
@@ -195,7 +228,7 @@ export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; ext
   };
 
   return <>
-    <motion.div layoutScroll className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada em grade" data-editing={editing}>
+    <div className="note-ribbon-scroll" tabIndex={0} role="group" aria-label="Barra avançada em grade" data-editing={editing}>
       {sections.map((section) => <div key={section.id} className="note-ribbon-section" data-section={section.id} role="group" aria-label={section.label}>
         {section.fixed}
         {section.lanes.map((lane) => <RibbonLane key={lane.id} lane={lane} editing={editing}
@@ -208,7 +241,7 @@ export function RibbonGrid({ sections, extra }: { sections: RibbonSection[]; ext
           }} />)}
       </div>)}
       <div className="note-ribbon-section note-ribbon-extra" role="group" aria-label="Mais ferramentas">{extra}</div>
-    </motion.div>
+    </div>
     <div ref={actions} className="note-ribbon-actions">
       <IconButton label={editing ? 'Concluir organização da barra' : 'Reordenar ferramentas'}
         aria-pressed={editing} onMouseDown={(event) => event.preventDefault()}
