@@ -322,7 +322,8 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
     const Icon = collectionIcons[kind];
     return { label: 'Inserir ' + definition.label.toLocaleLowerCase('pt-BR'), icon: <Icon size={17} />, run: () => insertSet(kind) };
   });
-  const insertActions = [insertImage, insertTable, linkAction, ...insertSets, quote, code, separator];
+  const insertActions = [insertImage, insertTable, linkAction, ...insertSets, quote, code];
+  const indentActions = [...blocks.slice(0, 2), separator];
   const insertion = <div role="group" aria-label="Inserir">
     <div className="note-insert-actions">{group(insertActions)}</div>
   </div>;
@@ -346,7 +347,7 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
   const categories: ToolCategory[] = [
     { id: 'format', label: 'Texto', icon: <Type size={19} />, groups: [
       { label: 'Estilo e fonte', rows: [<>{styleControl}{fontSelect}{weightField}{sizeInput}</>, group(textActions)] },
-      { label: 'Listas e parágrafo', rows: [group(lists), <>{group(align)}{lineHeight}</>, group(blocks.slice(0, 2))] },
+      { label: 'Listas e parágrafo', rows: [group(lists), <>{group(align)}{lineHeight}</>, group(indentActions)] },
       { label: 'Área de transferência', rows: [group(clipboard)] },
     ] },
     ...(context.length ? [{ id: 'context', label: tools.table ? 'Tabela' : tools.selectedBlock === 'collection' ? 'Conjunto' : 'Imagem',
@@ -377,7 +378,7 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
       { id: 'alignment', cells: [...align.map(actionCell),
         { id: 'line-height', label: 'Altura da linha', span: 2, control: lineHeight },
       ] },
-      { id: 'lists', cells: [...lists, ...blocks.slice(0, 2)].map(actionCell) },
+      { id: 'lists', cells: [...lists, ...indentActions].map(actionCell) },
     ] },
     { id: 'insert', label: 'Inserir', lanes: [
       { id: 'insert', flow: 'matrix', cells: insertActions.map(actionCell) },

@@ -18,7 +18,14 @@ export function validateRibbonOrder(value: unknown): RibbonOrder | undefined {
 export function resolveRibbonLane(defaults: string[], saved?: string[]): string[] {
   if (!saved) return defaults;
   const available = new Set(defaults);
-  return [...saved.filter((id) => available.delete(id)), ...available];
+  const restored = saved.filter((id) => available.delete(id));
+  defaults.forEach((id, index) => {
+    if (!available.has(id)) return;
+    const previous = restored.indexOf(defaults[index - 1]);
+    if (previous < 0) restored.push(id);
+    else restored.splice(previous + 1, 0, id);
+  });
+  return restored;
 }
 
 export function moveRibbonItem(order: string[], id: string, position: number): string[] {
