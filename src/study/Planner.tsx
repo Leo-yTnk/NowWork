@@ -67,7 +67,8 @@ export function Week({ onAdd, compact = false }: { onAdd: (due?: string | null) 
   const date = asLocalDate(selected.toISOString());
   const days = daysOfWeek(selected);
   const dayEntries = app.data.entries.filter((entry) => entry.status !== 'archived' && (entry.kind === 'event' || entry.kind === 'task'));
-  const selectedEntries = dayEntries.filter((entry) => asLocalDate(entry.dueAt) === date);
+  const selectedEntries = dayEntries.filter((entry) => asLocalDate(entry.dueAt) === date)
+    .sort((a, b) => Date.parse(a.dueAt ?? '') - Date.parse(b.dueAt ?? ''));
   const shift = (delta: number) => select(new Date(selected.getFullYear(), selected.getMonth(), selected.getDate() + delta));
   const format = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' });
   return <Surface className={'nw-week ' + (compact ? 'compact' : '')}>
@@ -88,7 +89,7 @@ export function Week({ onAdd, compact = false }: { onAdd: (due?: string | null) 
       </button>;
     })}</div>
     <div className="nw-day-head"><strong>{selected.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
-      <button className="nw-icon" aria-label="Adicionar tarefa neste dia" type="button" onClick={() => onAdd(dateToDeadline(date))}><Plus size={18} /></button></div>
-    {selectedEntries.length ? <TaskList entries={selectedEntries} /> : <p className="nw-no-date"><CalendarDays size={16} /> Nenhuma entrega neste dia.</p>}
+      <button className="nw-icon" aria-label="Adicionar registro neste dia" type="button" onClick={() => onAdd(dateToDeadline(date))}><Plus size={18} /></button></div>
+    {selectedEntries.length ? <TaskList entries={selectedEntries} /> : <p className="nw-no-date"><CalendarDays size={16} /> Nenhuma tarefa ou compromisso neste dia.</p>}
   </Surface>;
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { emptyData, uid } from '../types';
 import type { Entry } from '../types';
-import { assistantMessage, dateToDeadline, pointsBalance, pointsFor, priorityScore, rankedTasks } from './engine';
+import { assistantMessage, dateToDeadline, pointsBalance, pointsFor, priorityScore, rankedTasks, entryDueLabel, nextCommitment, weekActivity } from './engine';
 import { rubberBand } from './motion';
 
 function task(overrides: Partial<Entry> = {}): Entry {
@@ -50,4 +50,26 @@ describe('regras transparentes', () => {
   it('converte data de calendário em prazo válido', () => {
     expect(new Date(dateToDeadline('2026-11-17') || '').getFullYear()).toBe(2026);
   });
+});
+
+it('mantém compromissos sem horário e descarta horários que já passaram', () => {
+  const now = new Date(2026, 10, 23, 13);
+  const event = (time?: string) => task({
+    kind: 'event', dueAt: dateToDeadline('2026-11-23', time), eventTime: time ? true : undefined,
+  });
+  const future = event('14:30');
+  expect(nextCommitment([event('12:00'), event(), future], now)).toBe(future);
+  expect(entryDueLabel(future, now)).toBe('Hoje às 14:30');
+  expect(entryDueLabel(event(), now)).toBe('Hoje');
+});
+
+it('conta somente tarefas concluídas, uma vez por tarefa', () => {
+  const now = new Date(2026, 10, 23, 13);
+  const data = emptyData();
+  const done = task({ status: 'done', completedAt: now.toISOString() });
+  data.entries = [done, task({ status: 'done', kind: 'event', completedAt: now.toISOString() }), task()];
+  data.activity = ['first', 'last'].map((id) => ({
+    id, kind: 'complete', at: now.toISOString(), label: done.title, points: 0, entryId: done.id,
+  }));
+  expect(weekActivity(data, now).at(-1)?.completed).toBe(1);
 });

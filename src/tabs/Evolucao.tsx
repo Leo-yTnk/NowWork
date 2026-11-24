@@ -12,7 +12,7 @@ export function Evolucao() {
   const [rewardName, setRewardName] = useState('');
   const [rewardCost, setRewardCost] = useState(30);
   const points = pointsBalance(data.activity);
-  const series = weekActivity(data.activity);
+  const series = weekActivity(data);
   const weekCompletions = series.reduce((sum, d) => sum + d.completed, 0);
   const weekSteps = series.reduce((sum, d) => sum + d.steps, 0);
   const weekRest = series.reduce((sum, d) => sum + d.breaks, 0);
@@ -39,9 +39,9 @@ export function Evolucao() {
 
     <SectionHeader label="Últimos 7 dias" trailing={<span className="section-note">Sem metas obrigatórias</span>}/>
     <Surface className="weekly-card">
-      <div className="week-stats"><Stat value={weekCompletions} label="atividades concluídas" symbol={<Check size={15}/>} />
+      <div className="week-stats"><Stat value={weekCompletions} label="tarefas concluídas" symbol={<Check size={15}/>} />
         <Stat value={weekSteps} label="pequenos avanços" symbol={<TrendingUp size={15}/>} /></div>
-      <div className="week-chart" role="img" aria-label="Atividades concluídas e pequenos avanços em cada um dos últimos sete dias">
+      <div className="week-chart" role="img" aria-label="Tarefas concluídas e pequenos avanços em cada um dos últimos sete dias">
         {series.map((day) => {
           const n = day.completed + day.steps;
           return <div className="day-col" key={day.key} title={day.label + ': ' + n + ' avanços'}>

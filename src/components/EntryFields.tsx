@@ -1,5 +1,5 @@
 import type { EntryInput } from '../types';
-import { asLocalDate, dateToDeadline } from '../lib/engine';
+import { asLocalDate, dateToDeadline, localTime } from '../lib/engine';
 import { useApp } from '../state/AppState';
 import { KINDS } from '../types';
 import { Select } from './Select';
@@ -24,7 +24,8 @@ export function EntryFields({ value, onChange, showKind = true }: {
       <input required maxLength={200} value={value.title} onChange={(e) => change('title', e.target.value)} placeholder="O que está na sua cabeça?" />
     </label>
     {showKind && <div className="field-label">Tipo
-      <Select label="Tipo" value={value.kind} options={entryKinds} onChange={(kind) => change('kind', kind)} />
+      <Select label="Tipo" value={value.kind} options={entryKinds} onChange={(kind) => onChange({ ...value, kind, eventTime: undefined,
+        dueAt: value.eventTime ? dateToDeadline(asLocalDate(value.dueAt)) : value.dueAt })} />
     </div>}
     <label className="field-label">Anotações <span className="subtle">(opcional)</span>
       <textarea rows={2} maxLength={3000} value={value.note} onChange={(e) => change('note', e.target.value)} placeholder="Algum detalhe que ajude depois..." />
@@ -34,9 +35,20 @@ export function EntryFields({ value, onChange, showKind = true }: {
         <Select label="Matéria" value={value.subjectId || ''} onChange={(id) => change('subjectId', id || undefined)}
           options={[[ '', 'Sem matéria'], ...subjects.map(({ id, title }) => [id, title] as const)]} />
       </div>
-      <label className="field-label"><span>Prazo <span className="subtle">(opcional)</span></span>
-        <input type="date" value={asLocalDate(value.dueAt)} onChange={(e) => change('dueAt', dateToDeadline(e.target.value))} />
+      <label className="field-label"><span>{value.kind === 'event' ? 'Data' : 'Prazo'} <span className="subtle">(opcional)</span></span>
+        <input type="date" value={asLocalDate(value.dueAt)} onChange={(event) => {
+          const date = event.target.value;
+          const time = value.eventTime ? localTime(value.dueAt) : '';
+          onChange({ ...value, dueAt: dateToDeadline(date, time), eventTime: !!(date && time) || undefined });
+        }} />
       </label>
+      {value.kind === 'event' && <label className="field-label"><span>Horário <span className="subtle">(opcional)</span></span>
+        <input type="time" disabled={!value.dueAt} value={value.eventTime ? localTime(value.dueAt) : ''}
+          onChange={(event) => {
+            const time = event.target.value;
+            onChange({ ...value, dueAt: dateToDeadline(asLocalDate(value.dueAt), time), eventTime: !!time || undefined });
+          }} />
+      </label>}
       <div className="field-label">Duração estimada
         <Select label="Duração estimada" value={value.minutes} onChange={(minutes) => change('minutes', minutes)}
           options={availableDurations.map((minutes) => [minutes, minutes + ' min'])} />

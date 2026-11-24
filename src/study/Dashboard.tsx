@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, BarChart3, BookOpen, CalendarDays, CheckCircle2, Clock3, LayoutGrid, ListTodo, Sparkles, TriangleAlert } from 'lucide-react';
 import { Button, Surface } from '../components/ui';
-import { asLocalDate, dueLabel, rankedTasks, weekActivity } from '../lib/engine';
+import { asLocalDate, dueLabel, entryDueLabel, rankedTasks, weekActivity } from '../lib/engine';
 import { areas, routeHref, subjectViews, type SubjectView } from '../lib/navigation';
 import { subjectShortcuts } from '../lib/subjectShortcuts';
 import { useApp } from '../state/AppState';
@@ -42,12 +42,8 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
   const next = pending[0];
   const tasks = data.entries.filter((item) => item.kind === 'task');
   const todayTasks = tasks.filter((item) => item.status !== 'archived' && asLocalDate(item.dueAt) === today);
-  const completions = new Map<string, number>();
-  for (const task of tasks) {
-    const day = asLocalDate(task.completedAt);
-    if (day) completions.set(day, (completions.get(day) ?? 0) + 1);
-  }
-  const done = completions.get(today) ?? 0;
+  const week = weekActivity(data, now);
+  const done = week.at(-1)?.completed ?? 0;
   const pendingToday = pending.filter((item) => asLocalDate(item.dueAt) === today);
   const todayPending = pendingToday[0];
   const plannedMinutes = pendingToday.reduce((total, task) => total + task.minutes, 0);
@@ -56,7 +52,8 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
     .filter((entry) => {
       if (entry.status !== 'active' || (entry.kind !== 'task' && entry.kind !== 'event') || !entry.dueAt) return false;
       const day = asLocalDate(entry.dueAt);
-      return day >= today && new Date(entry.dueAt) < horizon;
+      return day >= today && new Date(entry.dueAt) < horizon &&
+        (entry.kind !== 'event' || !entry.eventTime || Date.parse(entry.dueAt) >= now.getTime());
     })
     .sort((a, b) => Date.parse(a.dueAt ?? '') - Date.parse(b.dueAt ?? ''));
   const subjects = new Map(data.subjects.map(({ id, title }) => [id, title]));
@@ -66,9 +63,6 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
     return day && day < today;
   };
   const overdue = pending.filter(isOverdue);
-  const week = weekActivity(data.activity, now).map((day) => ({
-    ...day, completed: completions.get(asLocalDate(day.key)) ?? 0,
-  }));
   const largest = Math.max(1, ...week.map(({ completed }) => completed));
   const focusMinutes = week.at(-1)?.focusMinutes ?? 0;
   const weeklyFocus = week.reduce((total, day) => total + day.focusMinutes, 0);
@@ -130,7 +124,7 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
             <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })}>
               <Icon size={17} aria-hidden="true" />
               <span><strong>{entry.title}</strong><small>{[detail, subjectTitle].filter(Boolean).join(' · ')}</small></span>
-              <time dateTime={entry.dueAt ?? undefined}>{dueLabel(entry.dueAt)}</time>
+              <time dateTime={entry.dueAt ?? undefined}>{entryDueLabel(entry, now)}</time>
             </a>
           </li>;
         })}</ul> : <p className="nw-muted">Nenhum prazo ou compromisso cadastrado para os próximos 7 dias.</p>}

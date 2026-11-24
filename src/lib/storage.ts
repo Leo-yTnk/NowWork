@@ -76,6 +76,7 @@ export function validateData(value: unknown): AppData {
       effort: [1,2,3].includes(entry.effort) ? entry.effort : 2,
       minutes: Math.max(5, Math.min(600, Number(entry.minutes) || 25)),
       dueAt: typeof entry.dueAt === 'string' && Number.isFinite(Date.parse(entry.dueAt)) ? entry.dueAt : null,
+      ...(entry.kind === 'event' && entry.eventTime === true ? { eventTime: true } : {}),
       steps: Array.isArray(entry.steps) ? entry.steps.filter((s) => s && typeof s.title === 'string').map((s) => ({ id: String(s.id || crypto.randomUUID()), title: s.title.slice(0, 200), done: !!s.done, awarded: !!s.awarded })) : [],
       postponeCount: Math.max(0, Number(entry.postponeCount) || 0),
       source: entry.source === 'demo' ? 'demo' : 'user',

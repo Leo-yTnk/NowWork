@@ -39,6 +39,7 @@ export interface Entry {
   effort: Energy;
   minutes: number;
   dueAt: string | null;
+  eventTime?: boolean;
   steps: Step[];
   postponeCount: number;
   source: 'user' | 'demo';
@@ -47,7 +48,7 @@ export interface Entry {
   completedAt: string | null;
 }
 
-export type EntryInput = Pick<Entry, 'title' | 'note' | 'kind' | 'importance' | 'effort' | 'minutes' | 'dueAt' | 'subjectId'>;
+export type EntryInput = Pick<Entry, 'title' | 'note' | 'kind' | 'importance' | 'effort' | 'minutes' | 'dueAt' | 'eventTime' | 'subjectId'>;
 
 export interface Reward {
   id: string;
