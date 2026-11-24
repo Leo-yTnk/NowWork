@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, Clock3, Coffee, Flame, Lightbulb, Moon, Play, RotateCcw, Sparkles, Zap } from 'lucide-react';
-import { assistantMessage, dueDays, dueLabel, pointsFor, rankedTasks, reasonFor } from '../lib/engine';
+import { assistantMessage, dueDays, dueLabel, entryDueLabel, nextCommitment, pointsFor, rankedTasks, reasonFor } from '../lib/engine';
 import { useApp } from '../state/AppState';
 import { Button, EmptyState, Eyebrow, KindPill, SectionHeader, Stat, Surface } from '../components/ui';
 import type { Energy } from '../types';
@@ -23,8 +23,7 @@ export function Agora({ onMind, onBreak }: { onMind: () => void; onBreak: () => 
   const chosen = tasks.find((task) => task.id === data.focus?.entryId) || tasks[0];
   const active = data.entries.filter((e) => e.status === 'active');
   const soon = active.filter((e) => e.dueAt && (dueDays(e, now) ?? Infinity) <= 2);
-  const nextEvent = data.entries.filter((e) => e.kind === 'event' && e.status === 'active' && e.dueAt)
-    .sort((a,b) => Date.parse(a.dueAt || '') - Date.parse(b.dueAt || ''))[0];
+  const nextEvent = nextCommitment(data.entries, now);
   const focus = data.focus;
   const focusSeconds = focus ? Math.max(0, Math.floor((now.getTime() - Date.parse(focus.startedAt)) / 1000)) : 0;
   const restSeconds = data.break ? Math.max(0, Math.ceil((Date.parse(data.break.startedAt) + data.break.minutes * 60000 - now.getTime()) / 1000)) : 0;
@@ -94,7 +93,7 @@ export function Agora({ onMind, onBreak }: { onMind: () => void; onBreak: () => 
       <Surface className="overview-card">
         <Eyebrow>VISÃO LEVE</Eyebrow>
         <div className="stats-row"><Stat value={active.length} label="registros abertos"/><Stat value={soon.length} label="prazos até 2 dias"/></div>
-        {nextEvent && <p className="event-reminder"><Clock3 size={14}/> Próximo compromisso: {nextEvent.title} · {dueLabel(nextEvent.dueAt)}</p>}
+        {nextEvent && <p className="event-reminder"><Clock3 size={14}/> Próximo compromisso: {nextEvent.title} · {entryDueLabel(nextEvent, now)}</p>}
         <Button variant="ghost" size="sm" icon={<ArrowRight size={15}/>} onClick={onMind}>Ver caixa de entrada</Button>
       </Surface>
     </div>

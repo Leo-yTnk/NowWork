@@ -3,12 +3,14 @@ import { emptyData, uid } from '../types';
 import type { AppData, Entry, EntryInput, Reward, Step, Subject, StudyNote, Flashcard } from '../types';
 import { pointsBalance, pointsFor } from '../lib/engine';
 import { withDemo } from '../lib/demo';
-import { loadData, saveData } from '../lib/storage';
+import { loadData, StorageConflictError } from '../lib/storage';
 
 interface ToastState { id: string; message: string; undo?: boolean }
 interface AppContextValue {
   data: AppData;
   ready: boolean;
+  loadFailed: boolean;
+  saveError: string | null;
   toast: ToastState | null;
   dismissToast: () => void;
   notify: (message: string) => void;
@@ -58,6 +60,10 @@ function focusEvent(focus: AppData['focus']) {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(emptyData);
   const [ready, setReady] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const workspace = useRef<Awaited<ReturnType<typeof loadData>> | null>(null);
+  const lastScheduled = useRef<AppData | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const deletedRef = useRef<{ entry: Entry; index: number } | null>(null);
 
@@ -68,14 +74,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let alive = true;
     loadData().then((stored) => {
       if (!alive) return;
-      setData(stored);
+      workspace.current = stored;
+      lastScheduled.current = stored.data;
+      setData(stored.data);
+      setSaveError(stored.warning ?? null);
       setReady(true);
-    });
+    }).catch(() => { if (alive) setLoadFailed(true); });
     return () => { alive = false; };
   }, []);
   useEffect(() => {
-    if (!ready) return;
-    saveData(data).catch(() => notify('Não foi possível salvar. Exporte um backup.'));
+    const local = workspace.current;
+    if (!ready || !local || data === lastScheduled.current) return;
+    lastScheduled.current = data;
+    local.save(data).then(() => setSaveError(null)).catch((error: unknown) => {
+      setSaveError(error instanceof StorageConflictError ? error.message : local.warning ?? 'O salvamento local falhou. Exporte um backup para guardar suas mudanças.');
+    });
   }, [data, ready]);
   useEffect(() => {
     if (!toast) return;
@@ -291,10 +304,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   const addDemo = () => { setData((d) => withDemo(d)); notify('Exemplos adicionados e identificados.'); };
   const removeDemo = () => { setData((d) => ({ ...d, entries: d.entries.filter((e) => e.source !== 'demo'), focus: d.focus && d.entries.some((e) => e.id === d.focus?.entryId && e.source === 'demo') ? null : d.focus })); notify('Registros de demonstração removidos.'); };
-  const restore = (next: AppData) => { setData(next); notify('Backup importado com sucesso.'); };
-  const clearAll = () => { setData(emptyData()); deletedRef.current = null; notify('Dados locais reiniciados.'); };
+  const restore = (next: AppData) => { setData(next); notify('Backup carregado nesta aba.'); };
+  const clearAll = () => { setData(emptyData()); deletedRef.current = null; notify('Espaço reiniciado nesta aba.'); };
 
-  return <Context.Provider value={{ data, ready, toast, dismissToast, notify, visitSubject, saveSubject, removeSubject, saveNote, updateNote, removeNote, saveFlashcard, removeFlashcard, updateProfile, addEntry, editEntry,
+  return <Context.Provider value={{ data, ready, loadFailed, saveError, toast, dismissToast, notify, visitSubject, saveSubject, removeSubject, saveNote, updateNote, removeNote, saveFlashcard, removeFlashcard, updateProfile, addEntry, editEntry,
     completeEntry, reopenEntry, postponeEntry, archiveEntry, restoreEntry, deleteEntry, undoDelete, divideEntry, addStep, toggleStep,
     startFocus, finishFocus, startBreak, finishBreak, addReward, deleteReward, redeemReward, addDemo,
     removeDemo, restore, clearAll }}>

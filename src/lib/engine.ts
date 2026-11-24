@@ -58,18 +58,24 @@ export function assistantMessage(data: AppData, now = new Date()): string {
   return 'Vamos deixar o dia mais leve, começando pelo que mais importa.';
 }
 
-export function weekActivity(activity: Activity[], now = new Date()) {
+export function weekActivity(data: Pick<AppData, 'activity' | 'entries'>, now = new Date()) {
+  const completedByDay = new Map<string, number>();
+  for (const entry of data.entries) {
+    if (entry.kind !== 'task' || entry.status === 'active') continue;
+    const day = asLocalDate(entry.completedAt);
+    if (day) completedByDay.set(day, (completedByDay.get(day) ?? 0) + 1);
+  }
   return Array.from({ length: 7 }, (_, index) => {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - index));
     const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
-    const actions = activity.filter((event) => {
+    const actions = data.activity.filter((event) => {
       const at = new Date(event.at).getTime();
       return at >= day.getTime() && at < next.getTime();
     });
     return {
       key: day.toISOString(),
       label: new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(day).replace('.', ''),
-      completed: actions.filter((a) => a.kind === 'complete').length,
+      completed: completedByDay.get(asLocalDate(day.toISOString())) ?? 0,
       steps: actions.filter((a) => a.kind === 'step').length,
       breaks: actions.filter((a) => a.kind === 'rest').length,
       focusMinutes: actions.filter((a) => a.kind === 'focus').reduce((s, a) => s + (a.minutes || 0), 0),
@@ -77,11 +83,10 @@ export function weekActivity(activity: Activity[], now = new Date()) {
   });
 }
 
-export function dueLabel(date: string | null): string {
+export function dueLabel(date: string | null, today = new Date()): string {
   if (!date) return 'Sem prazo';
   const d = new Date(date);
   if (!Number.isFinite(d.getTime())) return 'Sem prazo';
-  const today = new Date();
   if (d.toDateString() === today.toDateString()) return 'Hoje';
   const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
   if (d.toDateString() === tomorrow.toDateString()) return 'Amanhã';
@@ -98,9 +103,27 @@ export function asLocalDate(value: string | null): string {
   return year + '-' + month + '-' + day;
 }
 
-export function dateToDeadline(date: string): string | null {
+export function localTime(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  return [date.getHours(), date.getMinutes()].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+export function entryDueLabel(entry: Entry, now = new Date()): string {
+  const label = dueLabel(entry.dueAt, now);
+  return entry.kind === 'event' && entry.eventTime && entry.dueAt ? label + ' às ' + localTime(entry.dueAt) : label;
+}
+
+export function nextCommitment(entries: Entry[], now: Date): Entry | undefined {
+  return entries.filter((entry) => entry.kind === 'event' && entry.status === 'active' &&
+    entry.dueAt && Date.parse(entry.dueAt) >= now.getTime())
+    .sort((a, b) => Date.parse(a.dueAt!) - Date.parse(b.dueAt!))[0];
+}
+
+export function dateToDeadline(date: string, time = ''): string | null {
   if (!date) return null;
   const [year, month, day] = date.split('-').map(Number);
-  const result = new Date(year, month - 1, day, 23, 59, 0);
+  const [hour, minute] = time ? time.split(':').map(Number) : [23, 59];
+  const result = new Date(year, month - 1, day, hour, minute);
   return Number.isFinite(result.getTime()) ? result.toISOString() : null;
 }

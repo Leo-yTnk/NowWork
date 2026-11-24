@@ -150,6 +150,10 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
       </nav>
     </div>
     <div className="document-writing-area" inert={mobile && pagesOpen}>
+      <header className="document-page-heading">
+        <a href={routeHref({ area: 'materias', subjectId, view: 'caderno' })}>{subject?.title || 'Caderno'}</a>
+        <h1>{note.title || 'Sem título'}</h1>
+      </header>
       <Suspense fallback={<p role="status" className="document-loading nw-muted">Abrindo editor…</p>}>
         <RichTextEditor key={note.id} content={note.content || fromBlocks(note.blocks)}
           widthSettings={widthSettings} onChange={(content) => app.updateNote(note.id, { content })} />

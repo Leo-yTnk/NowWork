@@ -67,7 +67,7 @@ function ToolGroups({ groups }: { groups: ToolGroup[] }) {
 }
 
 export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, categories, mobile, panel, setPanel, extra, dismissKeyboard, clearExtra }: {
-  simple: { history: ReactNode; text: ReactNode; lists: ReactNode; insertIcon: ReactNode };
+  simple: { history: ReactNode; quick: ReactNode; text: ReactNode; lists: ReactNode; insertIcon: ReactNode };
   ribbon: RibbonSection[]; insertion: ReactNode; reorderActions: ReactNode; categories: ToolCategory[]; mobile: boolean; panel: string | null; setPanel: (panel: string | null) => void; extra?: ReactNode;
   dismissKeyboard: () => void; clearExtra: () => void;
 }) {
@@ -80,11 +80,11 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
   const reduced = useReducedMotion();
   const { data } = useApp();
   const { toolbarMode, reducedMotion } = data.profile;
-  const advanced = toolbarMode === 'advanced';
+  const advanced = !mobile && toolbarMode === 'advanced';
   const animate = !reduced && !reducedMotion;
   const context = categories.find(({ id }) => id === 'context');
   const selected = categories.find(({ id }) => id === (advanced || panel === 'context' ? panel : simpleCategory)) ?? categories[0];
-  const open = !!extra || panel === 'more' || panel === 'text' || panel === 'lists' || (panel === 'context' && !!context);
+  const open = !!extra || (mobile && panel === 'insert') || panel === 'more' || panel === 'text' || panel === 'lists' || (panel === 'context' && !!context);
   const extraRef = useRef(clearExtra);
   extraRef.current = clearExtra;
 
@@ -133,7 +133,9 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
     aria-label={label} title={label} icon={icon}
     aria-expanded={panel === id && open} onMouseDown={(event) => event.preventDefault()}
     onClick={(event) => togglePanel(id, event.currentTarget)}><span>{label}</span></Button>;
-  const formatPanel = panel === 'text' || panel === 'lists'
+  const formatPanel = mobile && panel === 'insert'
+    ? <>{insertion}<div className="note-tool-row" role="group" aria-label="Mover bloco">{reorderActions}</div></>
+    : panel === 'text' || panel === 'lists'
     ? <div className="note-tool-row">{panel === 'text' ? simple.text : simple.lists}</div>
     : <>
       {!advanced && panel !== 'context' && <div className="note-category-row" role="group" aria-label="Categorias de ferramentas">
@@ -143,7 +145,7 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
       <ToolGroups groups={selected.groups} />
     </>;
 
-  const insert = <IconButton label={panel === 'insert' ? 'Voltar às ferramentas' : 'Inserir'} aria-pressed={panel === 'insert'} onMouseDown={(event) => event.preventDefault()}
+  const insert = <IconButton aria-expanded={mobile ? panel === 'insert' : undefined} label={panel === 'insert' ? 'Voltar às ferramentas' : 'Inserir'} aria-pressed={panel === 'insert'} onMouseDown={(event) => event.preventDefault()}
     onClick={(event) => togglePanel('insert', event.currentTarget)}>{panel === 'insert' ? <ArrowLeft size={19} /> : simple.insertIcon}</IconButton>;
   const more = <IconButton label="Mais ferramentas" aria-expanded={panel === 'more'} onMouseDown={(event) => event.preventDefault()}
     onClick={(event) => togglePanel('more', event.currentTarget)}><strong>Aa</strong></IconButton>;
@@ -151,7 +153,13 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
   const bar = <div ref={root} className={mobile ? 'note-controls note-dock' : 'note-controls note-toolbar'}
     style={mobile && inset ? { bottom: inset + 8, '--note-keyboard-inset': inset + 'px' } as CSSProperties : undefined}>
     <div className={'note-command-bar' + (advanced ? ' note-command-advanced' : '')} role="group" aria-label="Ferramentas do caderno">
-      {advanced ? <RibbonGrid sections={ribbon} extra={context && categoryButton(context)} onEditingStart={() => {
+      {mobile ? <div className="note-mobile-actions">
+        {simple.quick}
+        <IconButton label="Listas" aria-expanded={panel === 'lists'} onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => togglePanel('lists', event.currentTarget)}><List size={19} /></IconButton>
+        {more}{insert}{context && <IconButton label={context.label} aria-expanded={panel === 'context' && open}
+          onMouseDown={(event) => event.preventDefault()} onClick={(event) => togglePanel('context', event.currentTarget)}>{context.icon}</IconButton>}
+      </div> : advanced ? <RibbonGrid sections={ribbon} extra={context && categoryButton(context)} onEditingStart={() => {
         setPanel(null);
         clearExtra();
       }} /> : panel === 'insert' ? <div className="note-simple-insertion">{insert}{insertion}<div className="note-reorder-actions" role="group" aria-label="Mover bloco">{reorderActions}</div></div>

@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Archive, CalendarDays, Check, ChevronDown, Clock3, Play, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { Entry, EntryInput } from '../types';
 import { KINDS } from '../types';
-import { dueLabel, dueDays } from '../lib/engine';
+import { entryDueLabel, dueDays } from '../lib/engine';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { Button, KindPill } from './ui';
@@ -19,11 +19,11 @@ export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; 
   const [stepText, setStepText] = useState('');
   const [draft, setDraft] = useState<EntryInput>({
     title: entry.title, kind: entry.kind, note: entry.note, importance: entry.importance,
-    effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, subjectId: entry.subjectId,
+    effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, eventTime: entry.eventTime, subjectId: entry.subjectId,
   });
   useEffect(() => {
     if (!editing) setDraft({ title: entry.title, kind: entry.kind, note: entry.note,
-      importance: entry.importance, effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, subjectId: entry.subjectId });
+      importance: entry.importance, effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, eventTime: entry.eventTime, subjectId: entry.subjectId });
   }, [entry, editing]);
   const overdue = entry.status === 'active' && (dueDays(entry) ?? Infinity) < 0;
   const save = (event: FormEvent<HTMLFormElement>) => {
@@ -50,7 +50,7 @@ export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; 
         {entry.status === 'archived' && <span className="status-label">Arquivada</span>}
       </div>
       <h3>{entry.title}</h3><div className="entry-meta">
-        {entry.dueAt && <span className={overdue ? 'is-overdue' : ''}><CalendarDays size={13}/>{overdue ? 'Prazo vencido' : dueLabel(entry.dueAt)}</span>}
+        {entry.dueAt && <span className={overdue ? 'is-overdue' : ''}><CalendarDays size={13}/>{overdue ? 'Prazo vencido' : entryDueLabel(entry)}</span>}
         {entry.kind === 'task' && <span><Clock3 size={13}/>{entry.minutes} min</span>}
         {entry.steps.length > 0 && <span>{entry.steps.filter((s) => s.done).length}/{entry.steps.length} passos</span>}
       </div></div>

@@ -348,7 +348,7 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
     { id: 'format', label: 'Texto', icon: <Type size={19} />, groups: [
       { label: 'Estilo e fonte', rows: [<>{styleControl}{fontSelect}{weightField}{sizeInput}</>, group(textActions)] },
       { label: 'Listas e parágrafo', rows: [group(lists), <>{group(align)}{lineHeight}</>, group(indentActions)] },
-      { label: 'Área de transferência', rows: [group(clipboard)] },
+      { label: 'Edição', rows: [<>{group(history)}{group(clipboard)}</>] },
     ] },
     ...(context.length ? [{ id: 'context', label: tools.table ? 'Tabela' : tools.selectedBlock === 'collection' ? 'Conjunto' : 'Imagem',
       icon: tools.table ? <Table2 size={18} /> : <SlidersHorizontal size={18} />, groups: context }] : []),
@@ -420,7 +420,7 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
           .insertContent({ type: 'noteImage', attrs: { image } }).run();
       } catch (error) { notify(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.'); }
     }} />
-    <NotebookToolbar simple={{ history: group(history), text: <>{styleControl}{weightField}{group(marks.slice(0, 3))}</>,
+    <NotebookToolbar simple={{ history: group(history), quick: group(marks.slice(0, 3)), text: <>{styleControl}{weightField}{group(marks.slice(0, 3))}</>,
       lists: group(lists), insertIcon: <Plus size={21} /> }} ribbon={ribbon} insertion={insertion} reorderActions={group(blocks.slice(2))} categories={categories} panel={toolPanel} setPanel={setToolPanel} extra={extra} mobile={mobile}
       clearExtra={() => { setPopover(null); setLink(null); }}
       dismissKeyboard={() => {
