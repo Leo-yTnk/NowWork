@@ -1,6 +1,9 @@
 /* Shared primitives. Feature styles supply layout and content-specific behavior. */
 .icon-button { border: 1px solid var(--control-border); color: var(--ink); background: var(--surface); min-width: 42px; min-height: 42px; display: inline-grid; place-items: center; border-radius: var(--radius-sm); transition: background .18s, border-color .18s; }
-.icon-button:hover { background: var(--surface-soft); }
+.icon-button:active:where(:not(:disabled)) { background: var(--surface-soft); transition-duration: 0s; }
+@media (hover: hover) {
+  .icon-button:hover:where(:not(:disabled)) { background: var(--surface-soft); }
+}
 .eyebrow { font-size: 10px; font-weight: 740; letter-spacing: .16em; line-height: 1.35; color: var(--accent); }
 .surface { position: relative; background: var(--surface-fill, var(--surface)); border: var(--card-border-width) solid var(--surface-edge, var(--card-edge)); border-radius: var(--surface-radius, var(--radius-lg)); box-shadow: var(--shadow-card); }
 .surface::after { content: ''; pointer-events: none; position: absolute; inset: 5px; border: var(--card-border-width) dashed var(--card-stitch); border-radius: calc(var(--surface-radius, var(--radius-lg)) - 6px); }

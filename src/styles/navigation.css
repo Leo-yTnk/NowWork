@@ -20,6 +20,16 @@
   align-items: center;
 }
 .workspace-primary { justify-self: start; gap: var(--space-1); }
+:is(.workspace-primary, .workspace-sections, .notebook-page-list, .document-sidebar, .document-page-heading, .today-agenda) a,
+.subject-directory-link, .workspace-header .ds-icon-button {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Tabs have an active indicator, and notebook pages provide their own context menu. */
+:is(.workspace-primary, .workspace-sections, .notebook-page-list, .document-sidebar) a {
+  -webkit-touch-callout: none;
+}
 .workspace-primary a, .workspace-sections a, .subject-directory-link {
   position: relative;
   display: inline-flex;
@@ -39,8 +49,17 @@
   border-radius: var(--radius-sm);
   white-space: nowrap;
 }
-.workspace-primary a:hover, .workspace-primary a[aria-current],
-.workspace-sections a:hover, .workspace-sections a[aria-current] { color: var(--accent); }
+.workspace-primary a[aria-current], .workspace-sections a[aria-current],
+.workspace-primary a:active, .workspace-sections a:active { color: var(--accent); }
+.workspace-primary a:active, .subject-directory-link:active {
+  background: var(--accent-soft);
+  transition-duration: 0s;
+}
+.workspace-sections a:active { transition-duration: 0s; }
+@media (hover: hover) {
+  .workspace-primary a:hover, .workspace-sections a:hover { color: var(--accent); }
+  .subject-directory-link:hover { background: var(--accent-soft); }
+}
 .workspace-primary a[aria-current], .workspace-sections a[aria-current] { font-weight: 700; }
 .workspace-tab-label { display: grid; justify-items: center; }
 .workspace-tab-label > span { grid-area: 1 / 1; }
@@ -148,7 +167,6 @@
   border-radius: var(--radius-sm);
   color: var(--accent);
 }
-.subject-directory-link:hover { background: var(--accent-soft); }
 @media (max-width: 700px) {
   .workspace-history .workspace-history-step, .workspace-primary .workspace-tab-label { display: none; }
   .workspace-primary { gap: 0; }

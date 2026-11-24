@@ -190,7 +190,7 @@ function AppContent() {
           : <Stack className="workspace-page">
               <div className="workspace-page-heading">
                 <PageHeading title={subject.title} icon={<div className="subject-heading-icons">
-                  <a className="subject-directory-link" href={routeHref(areas.materias)} aria-label="Todas as matérias" title="Todas as matérias">
+                  <a className="subject-directory-link" href={routeHref(areas.materias)} draggable={false} aria-label="Todas as matérias" title="Todas as matérias">
                     <ArrowLeft size={18} aria-hidden="true" />
                   </a><SubjectMark subject={subject} />
                 </div>} action={<IconButton label="Editar matéria" onClick={() => setSheet({ kind: 'subject', subject })}><Pencil size={18} /></IconButton>} />

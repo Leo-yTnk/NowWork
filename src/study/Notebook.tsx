@@ -34,7 +34,7 @@ function PageLink({ onEdit, onRename, onClick, ...props }: ComponentPropsWithout
     if (open) selected.current = false;
   }}>
     <ContextMenu.Trigger asChild>
-      <a {...props} ref={link} aria-haspopup="menu" aria-keyshortcuts="Shift+F10" onKeyDown={(event) => {
+      <a {...props} ref={link} draggable={false} aria-haspopup="menu" aria-keyshortcuts="Shift+F10" onKeyDown={(event) => {
         if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
         event.preventDefault();
         const { left, bottom } = event.currentTarget.getBoundingClientRect();
@@ -151,7 +151,7 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
     </div>
     <div className="document-writing-area" inert={mobile && pagesOpen}>
       <header className="document-page-heading">
-        <a href={routeHref({ area: 'materias', subjectId, view: 'caderno' })}>{subject?.title || 'Caderno'}</a>
+        <a href={routeHref({ area: 'materias', subjectId, view: 'caderno' })} draggable={false}>{subject?.title || 'Caderno'}</a>
         <h1>{note.title || 'Sem título'}</h1>
       </header>
       <Suspense fallback={<p role="status" className="document-loading nw-muted">Abrindo editor…</p>}>

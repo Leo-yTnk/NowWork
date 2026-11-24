@@ -113,7 +113,7 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
 
     <section className="nw-stack" aria-labelledby="today-agenda">
       <div className="nw-section-heading"><h2 id="today-agenda"><CalendarDays size={19} /> Próximos 7 dias</h2>
-        <a className="subject-directory-link" href={agendaHref}>Abrir agenda <ArrowRight size={15} /></a>
+        <a className="subject-directory-link" href={agendaHref} draggable={false}>Abrir agenda <ArrowRight size={15} /></a>
       </div>
       <Surface className="today-agenda">
         {upcoming.length ? <ul>{upcoming.slice(0, 5).map((entry) => {
@@ -121,7 +121,7 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
           const subjectTitle = entry.subjectId ? subjects.get(entry.subjectId) : undefined;
           const detail = entry.kind === 'event' ? 'Compromisso' : 'Tarefa';
           return <li key={entry.id}>
-            <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })}>
+            <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })} draggable={false}>
               <Icon size={17} aria-hidden="true" />
               <span><strong>{entry.title}</strong><small>{[detail, subjectTitle].filter(Boolean).join(' · ')}</small></span>
               <time dateTime={entry.dueAt ?? undefined}>{entryDueLabel(entry, now)}</time>
@@ -164,7 +164,7 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
 
     <section className="nw-stack" aria-labelledby="today-shortcuts">
       <div className="nw-section-heading"><h2 id="today-shortcuts"><LayoutGrid size={19} /> Atalhos</h2>
-        <a className="subject-directory-link" href={routeHref(areas.materias)}>Ver todas <ArrowRight size={15} /></a></div>
+        <a className="subject-directory-link" href={routeHref(areas.materias)} draggable={false}>Ver todas <ArrowRight size={15} /></a></div>
       {shortcuts.length ? <div className="subject-grid today-shortcuts">{shortcuts.map((item) =>
         <Surface key={item.id} layout className="today-subject">
           <div className="today-subject-heading"><SubjectMark subject={item} /><strong>{item.title}</strong></div>

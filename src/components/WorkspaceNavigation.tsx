@@ -101,7 +101,7 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
     <div className="workspace-header-inner">
       <nav className="workspace-primary" aria-label="Navegação principal">
         <NavigationIndicator className="workspace-current" activeKey={current} />
-        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} aria-label={title} aria-current={current === area ? 'page' : undefined}>
+        {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} draggable={false} aria-label={title} aria-current={current === area ? 'page' : undefined}>
           <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
         </a>)}
       </nav>
@@ -131,7 +131,7 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
 export function SectionNavigation({ label, links }: { label: string; links: readonly { label: string; href: string; active: boolean }[] }) {
   return <nav className="workspace-sections" aria-label={label}>
     <NavigationIndicator className="workspace-section-indicator" activeKey={links.find((link) => link.active)?.href} />
-    {links.map(({ label, href, active }) => <a key={href} href={href} aria-current={active ? 'page' : undefined}>
+    {links.map(({ label, href, active }) => <a key={href} href={href} draggable={false} aria-current={active ? 'page' : undefined}>
       <span className="workspace-tab-label" data-label={label}><span>{label}</span></span>
     </a>)}
   </nav>;
