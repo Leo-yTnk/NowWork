@@ -1,0 +1,38 @@
+name: Inspect Prism screenshots
+on:
+  push:
+    branches: [codex/prism-evidence]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open the test screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download 45663562183 --name NowWork-Prism-2.1-evidencias --dir "$RUNNER_TEMP/evidence"
+          npm install --prefix "$RUNNER_TEMP/image-tools" --no-save --no-audit --no-fund pngjs jpeg-js
+          NODE_PATH="$RUNNER_TEMP/image-tools/node_modules" node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { join } = require('node:path');
+          const { PNG } = require('pngjs');
+          const jpeg = require('jpeg-js');
+          for (const name of ['comparativo-hoje-390-dark', 'comparativo-hoje-1440-light', 'comparativo-toolbar-1440-light-advanced']) {
+            const img = PNG.sync.read(readFileSync(join(process.env.RUNNER_TEMP, 'evidence', name + '.png')));
+            const ratio = Math.min(1, (name.includes('toolbar') ? 1900 : 1160) / img.width);
+            const width = Math.round(img.width * ratio);
+            const height = Math.round(img.height * ratio);
+            const data = Buffer.alloc(width * height * 4);
+            for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+              const source = (Math.floor(y / ratio) * img.width + Math.floor(x / ratio)) * 4;
+              img.data.copy(data, (y * width + x) * 4, source, source + 4);
+            }
+            const b64 = jpeg.encode({ data, width, height }, 77).data.toString('base64');
+            for (const line of b64.match(/.{1,2200}/g)) console.log('PRISM_SCREEN|' + name + '|' + line);
+          }
+          NODE
