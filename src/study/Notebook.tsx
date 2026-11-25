@@ -82,7 +82,13 @@ export function Notebook({ subjectId, noteId, open, captureQuestion, createCard,
   const topics = [...new Set(notes.flatMap((page) => page.topic ? [page.topic] : []))];
   const visible = topic ? notes.filter((page) => page.topic === topic) : notes;
   useEffect(() => {
-    if (mobile && pagesOpen) sidebar.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus({ preventScroll: true });
+    if (!mobile || !pagesOpen) return;
+    const frame = requestAnimationFrame(() => {
+      const navigation = sidebar.current;
+      const currentPage = navigation?.querySelector<HTMLElement>('[aria-current="page"]');
+      (currentPage ?? navigation)?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [mobile, pagesOpen]);
 
   const add = (event: FormEvent) => {
@@ -138,8 +144,10 @@ export function Notebook({ subjectId, noteId, open, captureQuestion, createCard,
   return <section className="document-layout" data-pages-open={pagesOpen} aria-label="Editor do caderno">
     {mobile && <div className="document-sidebar-backdrop" aria-hidden="true" onClick={closePages} />}
     <div className="document-sidebar-slot">
-      <nav ref={sidebar} id={sidebarId} className="document-sidebar" aria-label="Páginas da matéria" inert={!pagesOpen}
-        onKeyDown={(event) => { if (event.key === 'Escape' && event.target instanceof Node && event.currentTarget.contains(event.target)) closePages(); }}>
+      <nav ref={sidebar} id={sidebarId} className="document-sidebar" aria-label="Páginas da matéria" inert={!pagesOpen} tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !event.defaultPrevented && event.target instanceof Node && event.currentTarget.contains(event.target)) closePages();
+        }}>
         <div className="document-sidebar-heading">{subject && <SubjectMark subject={subject} />}
           <h2>{subject?.title || 'Páginas da matéria'}</h2>
         </div>

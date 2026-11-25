@@ -10,6 +10,7 @@ import '@fontsource-variable/inter/wght-italic.css';
 import '@fontsource-variable/inter-tight';
 import '@fontsource-variable/inter-tight/wght-italic.css';
 import './styles/tokens.css';
+import './styles/editor-toolbar-compat.css';
 import './styles/app.css';
 import './styles/system.css';
 import './styles/workspace.css';

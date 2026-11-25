@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, KeyboardOff, List, Type } from 'lucide-react';
 import { Button, IconButton } from '../components/ui';
+import { EditorToolbarScope } from '../components/EditorToolbarScope';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { RibbonGrid, type RibbonSection } from './RibbonGrid';
@@ -192,5 +193,5 @@ export function NotebookToolbar({ simple, ribbon, insertion, reorderActions, cat
     </AnimatePresence>
   </div>;
 
-  return mobile ? createPortal(bar, document.body) : bar;
+  return <EditorToolbarScope.Provider value>{mobile ? createPortal(bar, document.body) : bar}</EditorToolbarScope.Provider>;
 }

@@ -86,9 +86,9 @@ export function SectionContent({ activeIndex, children }: { activeIndex: number;
   useLayoutEffect(() => { previous.current = activeIndex; }, [activeIndex]);
   const animate = direction !== 0 && !reduced && !data.profile.reducedMotion;
 
-  return <motion.div key={activeIndex} initial={animate ? { opacity: .55, x: direction * 10, filter: 'blur(2px)' } : false}
-    animate={{ opacity: 1, x: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
-    transition={reduced || data.profile.reducedMotion ? { duration: 0 } : { duration: .22, ease: [.2, .75, .3, 1], filter: { duration: .15 } }}>
+  return <motion.div key={activeIndex} initial={animate ? { opacity: .55, x: direction * 10 } : false}
+    animate={{ opacity: 1, x: 0 }}
+    transition={reduced || data.profile.reducedMotion ? { duration: 0 } : { duration: .24, ease: [.2, .75, .3, 1] }}>
     {children}
   </motion.div>;
 }
@@ -108,7 +108,13 @@ export function WorkspaceNavigation({ current, search, settings, capture, shortc
       <Toolbar label="Histórico e páginas" className="workspace-history">
         <div className="workspace-sidebar-toggle" data-visible={!!notebook} aria-hidden={!notebook}>
           <IconButton id={notebook?.toggleId} label={notebook?.pagesOpen ? 'Recolher páginas da matéria' : 'Expandir páginas da matéria'}
-            aria-expanded={notebook?.pagesOpen} aria-controls={notebook?.sidebarId} disabled={!notebook} onClick={notebook?.togglePages}>
+            aria-expanded={notebook?.pagesOpen} aria-controls={notebook?.sidebarId} disabled={!notebook} onClick={notebook?.togglePages}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && notebook?.pagesOpen) {
+                event.preventDefault();
+                notebook.togglePages();
+              }
+            }}>
             {notebook?.pagesOpen ? <PanelLeftClose size={19} /> : <PanelLeftOpen size={19} />}
           </IconButton>
         </div>
