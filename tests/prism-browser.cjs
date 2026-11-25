@@ -119,6 +119,7 @@ function combine(beforeImage, afterImage) {
 }
 
 async function toolbarStyles(locator) {
+  await locator.page().evaluate(() => new Promise((ready) => requestAnimationFrame(() => requestAnimationFrame(ready))));
   return locator.evaluate((root) => [root, ...root.querySelectorAll('button, input, [role="option"], .ds-select-frame')].map((el) => {
     const computed = getComputedStyle(el);
     const properties = [
@@ -140,6 +141,7 @@ async function toolbarCase(browser, url, test, phase) {
     await editor.waitFor();
     await editor.click();
     await page.keyboard.press('Control+a');
+    await page.getByRole('button', { name: 'Negrito (Misto)', exact: true }).waitFor();
     const bar = page.locator('.note-command-bar');
     const baseline = await toolbarStyles(bar);
     const screenshot = await bar.screenshot({ path: join(output, phase + '-toolbar-' + name + '.png') });
@@ -294,12 +296,15 @@ async function flows(browser, url, widths, engine) {
     assert.equal(await page.locator('.workspace-primary').evaluate((el) => getComputedStyle(el).position), 'relative');
     await page.getByRole('button', { name: 'Expandir páginas da matéria' }).click();
     await page.locator('.document-layout[data-pages-open="true"]').waitFor();
-    await page.waitForFunction(() => document.activeElement?.matches('.document-sidebar [aria-current="page"]'));
-    await page.keyboard.press('Escape');
+    const currentPage = page.locator('.document-sidebar [aria-current="page"]');
+    await currentPage.waitFor();
+    await currentPage.press('Escape');
     await page.locator('.document-layout[data-pages-open="false"]').waitFor();
+    const pagesToggle = page.getByRole('button', { name: 'Expandir páginas da matéria' });
+    assert.equal(await pagesToggle.evaluate((el) => el === document.activeElement), true);
 
     if (engine === 'chromium') {
-      await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), { timeout: 10000 });
+      await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), undefined, { timeout: 10000 });
       await context.setOffline(true);
       await page.reload();
       await editor.waitFor();
