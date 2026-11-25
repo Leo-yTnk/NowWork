@@ -4,7 +4,7 @@ import { recommendations, intentionPrompt } from '../lib/decision';
 import { adaptiveEstimate, focusSeconds } from '../lib/learning';
 import { executableTasks } from '../lib/planning';
 import { useApp } from '../state/AppState';
-import { Button, Card, EmptyState, Surface } from '../components/ui';
+import { Button, EmptyState, Surface } from '../components/ui';
 import type { Continuity, Energy } from '../types';
 
 const continuityFields = { stoppedAt: 'Onde parei', next: 'Próxima ação', context: 'Informações para retomar', difficulty: 'Dificuldades' };
@@ -42,7 +42,7 @@ export function Agora({ capture, onBreak, exit }: { capture: () => void; onBreak
     setEnd(false);
   };
   if (data.focus) return <div className="nw-stack">
-    <Card className="priority-card nw-stack">
+    <Surface className="priority-card nw-stack">
       <div className="cognitive-line"><h2>{current?.title ?? 'Sessão de foco'}</h2><Button size="sm" onClick={exit}>Sair da tela de foco</Button></div>
       {data.focus.goal && <p>{data.focus.goal}</p>}
       <p className="cognitive-timer"><Timer size={21} aria-hidden="true" /> <span role="timer" aria-label="Tempo ativo">{displayTimer(seconds)}</span>
@@ -88,11 +88,11 @@ export function Agora({ capture, onBreak, exit }: { capture: () => void; onBreak
           <Button onClick={() => setEnd(false)}>Voltar à sessão</Button>
         </div>
       </form>}
-    </Card>
+    </Surface>
   </div>;
-  if (data.break) return <Card className="rest-card nw-stack"><h2>Pausa em andamento</h2><p className="cognitive-timer">
+  if (data.break) return <Surface className="rest-card nw-stack"><h2>Pausa em andamento</h2><p className="cognitive-timer">
     {displayTimer(Math.max(0, Math.ceil((Date.parse(data.break.startedAt) + data.break.minutes * 60000 - +now) / 1000)))}</p>
-    <Button onClick={app.finishBreak}>Encerrar pausa</Button></Card>;
+    <Button onClick={app.finishBreak}>Encerrar pausa</Button></Surface>;
   const estimate = current && adaptiveEstimate(data, current);
   const prompt = current && intentionPrompt(current, data, now);
   return <div className="nw-stack">

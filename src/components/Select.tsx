@@ -1,18 +1,15 @@
-import { useContext, useId, useRef, useState, type CSSProperties } from 'react';
+import { useId, useRef, useState, type CSSProperties } from 'react';
 import * as Primitive from '@radix-ui/react-select';
 import { Check, ChevronDown } from 'lucide-react';
 import { ControlValue } from './ControlValue';
-import { EditorToolbarScope } from './EditorToolbarScope';
 
 type SelectOption<T extends string | number> = readonly [value: T, label: string];
-const optionKey = (value: string | number) => typeof value + ':' + value;
 
 export function Select<T extends string | number>({ label, value, options, onChange, displayValue, disabled, returnFocus = true, animateValue = false }: {
   label: string; value: T; options: readonly SelectOption<T>[];
   onChange: (value: T) => void; displayValue?: string; disabled?: boolean; returnFocus?: boolean; animateValue?: boolean;
 }) {
   const valueId = useId();
-  const editorToolbar = useContext(EditorToolbarScope);
   const selected = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -24,8 +21,8 @@ export function Select<T extends string | number>({ label, value, options, onCha
   const optionLabel = animateValue ? options.find(([key]) => key === value)?.[1] : undefined;
   const shownValue = displayValue ?? optionLabel;
 
-  return <Primitive.Root disabled={disabled} open={open} value={optionKey(value)} onValueChange={(raw) => {
-    const option = options.find(([key]) => optionKey(key) === raw);
+  return <Primitive.Root disabled={disabled} open={open} value={String(value) || 'ds-empty'} onValueChange={(raw) => {
+    const option = options.find(([key]) => (String(key) || 'ds-empty') === raw);
     if (option) {
       selected.current = true;
       onChange(option[0]);
@@ -48,8 +45,7 @@ export function Select<T extends string | number>({ label, value, options, onCha
       <Primitive.Icon asChild><ChevronDown size={13} aria-hidden="true" /></Primitive.Icon>
     </Primitive.Trigger>
     <Primitive.Portal>
-      <Primitive.Content className="ds-select-content" data-editor-toolbar-portal={editorToolbar || undefined}
-        inert={!open} style={{ '--ds-select-rows': options.length } as CSSProperties } position="popper" align="start" sideOffset={6} collisionPadding={8}
+      <Primitive.Content className="ds-select-content" inert={!open} style={{ '--ds-select-rows': options.length } as CSSProperties} position="popper" align="start" sideOffset={6} collisionPadding={8}
         onPointerDownOutside={(event) => {
           // Let a click on the trigger close the menu after the pointer is released.
           const target = event.detail.originalEvent.target;
@@ -57,7 +53,7 @@ export function Select<T extends string | number>({ label, value, options, onCha
         }}
         onCloseAutoFocus={(event) => { if (!returnFocus && selected.current) event.preventDefault(); }}>
         <div className="ds-select-frame ds-popup"><Primitive.Viewport className="ds-select-options">
-          {options.map(([key, name]) => <Primitive.Item key={optionKey(key)} value={optionKey(key)} className="ds-select-option">
+          {options.map(([key, name]) => <Primitive.Item key={key} value={String(key) || 'ds-empty'} className="ds-select-option">
             <Primitive.ItemText>{name}</Primitive.ItemText>
             <Primitive.ItemIndicator><Check size={15} aria-hidden="true" /></Primitive.ItemIndicator>
           </Primitive.Item>)}

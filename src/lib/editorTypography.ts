@@ -29,8 +29,7 @@ const variable = (name: string, min: number, max: number, fallback = 'sans-serif
   range: [min, max],
 });
 
-const defaultSans = variable('Plus Jakarta Sans', 200, 800);
-const prata: EditorFont = { name: 'Prata', family: "'Prata', Georgia, serif", weights: [400] };
+const defaultSans = variable('Manrope', 200, 800);
 
 export const editorFonts: readonly EditorFont[] = [
   { name: 'Arial', family: "Arial, 'Arimo Variable', sans-serif", weights: [400, 700] },
@@ -44,7 +43,7 @@ export const editorFonts: readonly EditorFont[] = [
   variable('Inter', 100, 900),
   variable('Inter Tight', 100, 900),
   variable('Lora', 400, 700, 'serif'),
-  variable('Manrope', 200, 800),
+  defaultSans,
   { name: 'Monoespaçada', family: 'ui-monospace, monospace', weights: [400, 700] },
   variable('Montserrat', 100, 900),
   variable('Noto Sans', 100, 900),
@@ -52,9 +51,8 @@ export const editorFonts: readonly EditorFont[] = [
   variable('Open Sans', 300, 800),
   variable('Oswald', 200, 700),
   variable('Playfair Display', 400, 900, 'serif'),
-  defaultSans,
+  variable('Plus Jakarta Sans', 200, 800),
   { name: 'Poppins', family: 'Poppins, sans-serif', weights: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
-  prata,
   variable('Quicksand', 300, 700),
   variable('Roboto', 100, 900),
   variable('Source Sans 3', 200, 900),
@@ -74,7 +72,6 @@ export function allowsWeight(weight: unknown, font?: EditorFont): weight is numb
 }
 
 export function defaultEditorFont(style: EditorTextStyle) {
-  if (style.startsWith('h')) return prata;
   return style === 'code' ? findEditorFont('Monoespaçada')! : defaultSans;
 }
 

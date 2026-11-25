@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, type PointerEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react';
 import { GripHorizontal, X } from 'lucide-react';
@@ -10,10 +10,7 @@ const overshoot = 72;
 
 interface Drag { id: number; y: number; height: number; lastY: number; lastTime: number; velocity: number; moved: boolean }
 
-export function ElasticSheet({ title, children, onClose, immediateFocus = false, focusField = true }: {
-  immediateFocus?: boolean; focusField?: boolean; title: string; children: ReactNode | ((dismiss: () => void) => ReactNode); onClose: () => void;
-}) {
-  const titleId = useId();
+export function ElasticSheet({ title, children, onClose, immediateFocus = false }: { immediateFocus?: boolean; title: string; children: ReactNode | ((dismiss: () => void) => ReactNode); onClose: () => void }) {
   const { data } = useApp();
   const systemReduced = useReducedMotion();
   const reduce = !!systemReduced || data.profile.reducedMotion;
@@ -55,8 +52,7 @@ export function ElasticSheet({ title, children, onClose, immediateFocus = false,
     offset.set(reduce ? 0 : initialHeight);
     backdrop.set(reduce ? 1 : 0);
     const moveFocus = () => {
-      if (!focusField) return;
-      const fields = panel.current?.querySelectorAll<HTMLElement>('.sheet-scroll input:not(:disabled, [type="file"]), .sheet-scroll textarea:not(:disabled)');
+      const fields = panel.current?.querySelectorAll<HTMLElement>('.sheet-scroll input:not([type="file"]), .sheet-scroll textarea');
       const target = Array.from(fields ?? []).find((field) => field.getClientRects().length > 0);
       (target || panel.current)?.focus({ preventScroll: true });
     };
@@ -73,7 +69,7 @@ export function ElasticSheet({ title, children, onClose, immediateFocus = false,
       if (event.key === 'Escape' && !event.defaultPrevented) close();
       if (event.key !== 'Tab') return;
       const controls = Array.from(panel.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary',
+        'button:not(:disabled), input:not(:disabled):not([type="file"]), select:not(:disabled), textarea:not(:disabled), a[href], summary',
       ) || []).filter((item) => item.getClientRects().length > 0);
       const first = controls[0];
       const last = controls.at(-1);
@@ -137,13 +133,13 @@ export function ElasticSheet({ title, children, onClose, immediateFocus = false,
 
   return createPortal(<div className="sheet-root">
     <motion.div className="sheet-backdrop" style={{ opacity: backdrop }} onClick={close} aria-hidden="true" />
-    <motion.section className="elastic-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId}
+    <motion.section className="elastic-sheet" role="dialog" aria-modal="true" aria-label={title}
       ref={panel} tabIndex={-1} style={{ height, y: offset }}>
       <div className="sheet-grab" onPointerDown={pointerDown} onPointerMove={pointerMove}
         onPointerUp={pointerUp} onPointerCancel={pointerUp} onLostPointerCapture={pointerUp} aria-label="Arraste para expandir ou reduzir o painel">
         <GripHorizontal size={26} strokeWidth={1.6} />
       </div>
-      <div className="sheet-head"><h2 id={titleId}>{title}</h2><IconButton label="Fechar painel" onClick={close}><X size={19} /></IconButton></div>
+      <div className="sheet-head"><h2>{title}</h2><IconButton label="Fechar painel" onClick={close}><X size={19} /></IconButton></div>
       <div className="sheet-scroll">{typeof children === 'function' ? children(close) : children}</div>
     </motion.section>
   </div>, document.body);
