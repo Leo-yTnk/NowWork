@@ -39,7 +39,7 @@ export function routeHref(route: Route): string {
     case 'planejar': return '#/planejar/' + route.view + (route.entryId ? '/' + encodeURIComponent(route.entryId) : '');
     case 'estudar': return '#/estudar/' + route.view;
     case 'materias': return route.subjectId
-      ? '#/materias/' + encodeURIComponent(route.subjectId) + '/' + (route.view || 'caderno') + (route.view === 'caderno' && route.noteId ? '/' + encodeURIComponent(route.noteId) : '')
+      ? '#/materias/' + encodeURIComponent(route.subjectId) + '/' + (route.view || 'caderno') + ((route.view === 'caderno' || route.view === 'revisao') && route.noteId ? '/' + encodeURIComponent(route.noteId) : '')
       : '#/materias';
   }
 }
@@ -55,7 +55,7 @@ export function parseRoute(hash: string): Route {
     const subjectId = decode(segment);
     if (!subjectId) return areas.materias;
     const selected = subjectViews.find(({ id }) => id === view)?.id ?? 'caderno';
-    return { area, subjectId, view: selected, noteId: selected === 'caderno' ? decode(item) : undefined };
+    return { area, subjectId, view: selected, noteId: selected !== 'tarefas' ? decode(item) : undefined };
   }
   return areas.hoje;
 }

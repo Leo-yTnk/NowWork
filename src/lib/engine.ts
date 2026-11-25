@@ -1,3 +1,4 @@
+import { recommendations, taskPriority } from './decision';
 import type { AppData, Energy, Entry, Activity } from '../types';
 
 export function pointsFor(entry: Entry): number {
@@ -15,20 +16,11 @@ export function dueDays(entry: Entry, now: Date = new Date()): number | null {
 }
 
 export function priorityScore(entry: Entry, energy: Energy, now = new Date()): number {
-  if (entry.kind !== 'task' || entry.status !== 'active') return -Infinity;
-  const days = dueDays(entry, now);
-  const deadline = days === null ? 0 : days < 0 ? 48 : days <= 1 ? 40 : days <= 3 ? 28 : days <= 7 ? 15 : 0;
-  const match = entry.effort <= energy ? 12 : -14 * (entry.effort - energy);
-  const quickWin = entry.minutes <= 20 ? 8 : entry.minutes <= 40 ? 4 : 0;
-  const deferrals = Math.min(12, entry.postponeCount * 4);
-  return deadline + entry.importance * 9 + match + quickWin + deferrals;
+  return taskPriority(entry, energy, now);
 }
 
 export function rankedTasks(data: AppData, now = new Date()): Entry[] {
-  return data.entries
-    .filter((item) => item.status === 'active' && item.kind === 'task')
-    .sort((a, b) => priorityScore(b, data.profile.energy, now) - priorityScore(a, data.profile.energy, now) ||
-      a.createdAt.localeCompare(b.createdAt));
+  return recommendations(data, now, undefined, false).flatMap((item) => item.type === 'task' ? [item.entry] : []);
 }
 
 export function reasonFor(entry: Entry, energy: Energy, now = new Date()): string {

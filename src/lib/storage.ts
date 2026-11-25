@@ -1,3 +1,4 @@
+import { captureFields, cardFields, cognitiveCollections, continuityFields, dateField, finite, focusFields, intentionFields } from './cognitiveBackup';
 import { validateEditorTypography } from './editorTypography';
 import { validateRibbonOrder } from './ribbonOrder';
 import { validateDocument } from './documents';
@@ -32,9 +33,9 @@ function openDatabase(): Promise<IDBDatabase> {
 
 export function validateData(value: unknown): AppData {
   if (!value || typeof value !== 'object') throw new Error('O arquivo não contém um backup válido.');
-  const obj = value as Partial<AppData>;
-  if (obj.version !== 1 || !obj.profile || !Array.isArray(obj.entries) || !Array.isArray(obj.activity) || !Array.isArray(obj.rewards)) {
-    throw new Error('Formato de backup não reconhecido (versão 1).');
+  const obj = value as Omit<Partial<AppData>, 'version'> & { version?: number };
+  if ((obj.version !== 1 && obj.version !== 2) || !obj.profile || typeof obj.profile !== 'object' || Array.isArray(obj.profile) || !Array.isArray(obj.entries) || !Array.isArray(obj.activity) || !Array.isArray(obj.rewards)) {
+    throw new Error('Formato de backup não reconhecido.');
   }
   const subjects = Array.isArray(obj.subjects) ? obj.subjects.filter(
     (item) => item && typeof item.id === 'string' && typeof item.title === 'string' && SUBJECT_COLORS.includes(item.color),
@@ -48,6 +49,7 @@ export function validateData(value: unknown): AppData {
     (note) => note && hasSubject(note.subjectId) && typeof note.title === 'string' && Array.isArray(note.blocks),
   ).map((note) => ({
     id: String(note.id || uid()), subjectId: note.subjectId, title: note.title.slice(0, 150),
+    ...(typeof note.topic === 'string' ? { topic: note.topic.slice(0, 100) } : {}),
     updatedAt: String(note.updatedAt || new Date().toISOString()),
     ...(note.content === undefined ? {} : { content: validateDocument(note.content) }),
     blocks: note.blocks.filter(
@@ -63,12 +65,22 @@ export function validateData(value: unknown): AppData {
     id: String(card.id || uid()), subjectId: card.subjectId, front: card.front.slice(0, 1000),
     back: card.back.slice(0, 5000), due: typeof card.due === 'string' && Number.isFinite(Date.parse(card.due)) ? card.due : '',
     interval: Math.max(0, Math.min(60, Math.floor(Number(card.interval) || 0))),
+    ...cardFields(card),
   })) : [];
-  const validKinds = ['task', 'event', 'worry', 'idea'];
+  const validKinds = ['task', 'event', 'worry', 'idea', 'capture'];
   const validStatuses = ['active', 'done', 'archived'];
   const entries: Entry[] = obj.entries.map((entry) => {
     if (!entry || typeof entry.title !== 'string' || !validKinds.includes(entry.kind) || !validStatuses.includes(entry.status)) throw new Error('Há registros inválidos no backup.');
+    const capture = captureFields(entry.capture);
+    if (entry.kind === 'capture' && !capture) throw new Error('O backup tem uma captura sem conteúdo.');
     return {
+      ...(capture ? { capture } : {}),
+      ...(Array.isArray(entry.dependencies) ? { dependencies: [...new Set(entry.dependencies.filter((id): id is string => typeof id === 'string'))] } : {}),
+      ...(dateField(entry.plannedOn) ? { plannedOn: entry.plannedOn } : {}),
+      ...(entry.optional === true ? { optional: true } : {}),
+      ...(typeof entry.activityType === 'string' ? { activityType: entry.activityType } : {}),
+      ...(intentionFields(entry.intention) ? { intention: intentionFields(entry.intention) } : {}),
+      ...(continuityFields(entry.continuity) ? { continuity: continuityFields(entry.continuity) } : {}),
       id: String(entry.id || crypto.randomUUID()), title: entry.title.slice(0, 200),
       subjectId: entry.subjectId && hasSubject(entry.subjectId) ? entry.subjectId : undefined,
       note: String(entry.note || '').slice(0, 3000), kind: entry.kind,
@@ -95,6 +107,11 @@ export function validateData(value: unknown): AppData {
       points: Math.max(-100000, Math.min(100000, Math.trunc(Number(item.points) || 0))),
       minutes: item.minutes === undefined ? undefined : Math.max(0, Number(item.minutes) || 0),
       entryId: typeof item.entryId === 'string' ? item.entryId : undefined,
+      ...(item.effectiveSeconds === undefined ? {} : { effectiveSeconds: finite(item.effectiveSeconds, 0, Number.MAX_SAFE_INTEGER) }),
+      ...(item.estimateMinutes === undefined ? {} : { estimateMinutes: finite(item.estimateMinutes, 1, 600) }),
+      ...(item.interruptions === undefined ? {} : { interruptions: finite(item.interruptions, 0, Number.MAX_SAFE_INTEGER) }),
+      ...(typeof item.subjectId === 'string' ? { subjectId: item.subjectId } : {}),
+      ...(typeof item.activityType === 'string' ? { activityType: item.activityType } : {}),
     };
   });
   const rewards: Reward[] = obj.rewards.map((item) => {
@@ -105,7 +122,8 @@ export function validateData(value: unknown): AppData {
   });
   const profile = obj.profile;
   return {
-    version: 1,
+    version: 2,
+    ...cognitiveCollections(obj),
     profile: {
       name: String(profile.name || '').slice(0, 50),
       energy: [1,2,3].includes(profile.energy) ? profile.energy : 2,
@@ -116,7 +134,7 @@ export function validateData(value: unknown): AppData {
       editorTypography: validateEditorTypography(profile.editorTypography),
     },
     subjects, subjectVisits, notes, flashcards, entries, rewards, activity,
-    focus: obj.focus && typeof obj.focus.entryId === 'string' && typeof obj.focus.startedAt === 'string' ? obj.focus : null,
+    focus: focusFields(obj.focus),
     break: obj.break && typeof obj.break.startedAt === 'string' && Number.isFinite(obj.break.minutes)
       ? { startedAt: obj.break.startedAt, minutes: Math.max(1, Math.min(60, obj.break.minutes)) } : null,
   };

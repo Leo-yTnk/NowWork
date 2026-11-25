@@ -1,3 +1,4 @@
+import { CircleHelp, Layers } from 'lucide-react';
 import { useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
@@ -48,8 +49,9 @@ function selectionBeforeBlur(view: EditorView): Selection {
     ? new TextSelection(anchor, head) : selection;
 }
 
-export function RichTextEditor({ content, onChange, widthSettings }: {
+export function RichTextEditor({ content, onChange, widthSettings, captureQuestion, createCard }: {
   content: JSONContent; onChange: (content: JSONContent) => void; widthSettings: HTMLDivElement | null;
+  captureQuestion?: (text: string) => void; createCard?: (text: string) => void;
 }) {
   const [toolPanel, setToolPanel] = useState<string | null>(null);
   const [link, setLink] = useState<string | null>(null);
@@ -322,7 +324,20 @@ export function RichTextEditor({ content, onChange, widthSettings }: {
     const Icon = collectionIcons[kind];
     return { label: 'Inserir ' + definition.label.toLocaleLowerCase('pt-BR'), icon: <Icon size={17} />, run: () => insertSet(kind) };
   });
-  const insertActions = [insertImage, insertTable, linkAction, ...insertSets, quote, code];
+  const selectedText = () => {
+    const saved = blurredSelection.current;
+    const selection = saved?.doc === editor.state.doc && editor.state.selection.empty ? saved.selection : editor.state.selection;
+    return editor.state.doc.textBetween(selection.from, selection.to, '\n').trim();
+  };
+  const knowledgeActions: EditorAction[] = [
+    ...(captureQuestion ? [{ label: 'Registrar dúvida', icon: <CircleHelp size={17} />, run: () => captureQuestion(selectedText()) }] : []),
+    ...(createCard ? [{ label: 'Flashcard do texto selecionado', icon: <Layers size={17} />, run: () => {
+      const text = selectedText();
+      if (text) createCard(text);
+      else notify('Selecione um trecho da página para criar o flashcard.');
+    } }] : []),
+  ];
+  const insertActions = [insertImage, insertTable, linkAction, ...insertSets, quote, code, ...knowledgeActions];
   const indentActions = [...blocks.slice(0, 2), separator];
   const insertion = <div role="group" aria-label="Inserir">
     <div className="note-insert-actions">{group(insertActions)}</div>

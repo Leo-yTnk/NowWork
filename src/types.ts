@@ -2,7 +2,7 @@ import type { EditorTypography } from './lib/editorTypography';
 import type { RibbonOrder } from './lib/ribbonOrder';
 import type { JSONContent } from '@tiptap/core';
 
-export type EntryKind = 'task' | 'event' | 'worry' | 'idea';
+export type EntryKind = 'task' | 'event' | 'worry' | 'idea' | 'capture';
 export type EntryStatus = 'active' | 'done' | 'archived';
 export type Energy = 1 | 2 | 3;
 export type Importance = 1 | 2 | 3;
@@ -25,11 +25,55 @@ export interface Subject { id: string; title: string; color: SubjectColor; icon?
 export interface SubjectVisit { subjectId: string; at: string }
 export const BLOCK_TYPES = ['text', 'heading', 'check', 'link'] as const;
 export interface NoteBlock { id: string; type: typeof BLOCK_TYPES[number]; text: string; checked?: boolean; url?: string }
-export interface StudyNote { id: string; subjectId: string; title: string; blocks: NoteBlock[]; content?: JSONContent; updatedAt: string }
-export interface Flashcard { id: string; subjectId: string; front: string; back: string; due: string; interval: number }
+export interface StudyNote { id: string; subjectId: string; title: string; topic?: string; blocks: NoteBlock[]; content?: JSONContent; updatedAt: string }
+export const REVIEW_MODES = ['flashcard', 'open', 'recall', 'cloze', 'explain'] as const;
+export type ReviewMode = typeof REVIEW_MODES[number];
+export type ReviewGrade = 'forgot' | 'hard' | 'good' | 'easy';
+export interface ReviewAttempt { at: string; grade: ReviewGrade; interval: number }
+export interface Flashcard {
+  id: string; subjectId: string; front: string; back: string; due: string; interval: number;
+  mode?: ReviewMode; topic?: string; history?: ReviewAttempt[]; examDay?: string;
+}
+
+export const CAPTURE_KINDS = ['task', 'event', 'note', 'idea', 'question', 'link', 'academic', 'review', 'other'] as const;
+export type CaptureKind = typeof CAPTURE_KINDS[number];
+export type RecordRef = { type: 'entry' | 'note' | 'card'; id: string };
+export interface RecordLink { from: RecordRef; to: RecordRef }
+export interface Capture {
+  content: string; classification?: CaptureKind; suggestedDay?: string; deferredUntil?: string; convertedTo?: RecordRef;
+}
+export interface Continuity { stoppedAt: string; next: string; context: string; difficulty: string }
+export type Intention =
+  | { type: 'time' | 'routine'; value: string; action: string }
+  | { type: 'event' | 'completion'; value: string; action: string };
+export interface TimeRange { start: number; end: number }
+export interface TimeBlock extends TimeRange { id: string; day: string; type: 'study' | 'break'; entryId?: string }
+export const PRIORITY_FACTORS = ['urgency', 'importance', 'fit', 'dependency', 'energy', 'preference', 'review'] as const;
+export type PriorityFactor = typeof PRIORITY_FACTORS[number];
+export const DEFAULT_WEIGHTS: Record<PriorityFactor, number> = {
+  urgency: 30, importance: 24, fit: 16, dependency: 10, energy: 6, preference: 6, review: 8,
+};
+export interface CognitiveSettings {
+  shortcut: string; recommendations: boolean; weights: Record<PriorityFactor, number>;
+  energy?: Energy; preferredSubject?: string; availableMinutes?: number;
+  availability: Partial<Record<number, TimeRange[]>>; buffer: number; trackFocus: boolean;
+  reviewMinutes: number; pauseReminder: number;
+}
+export interface DayPlan { day: string; closed?: boolean; rest?: boolean; pinned?: RecordRef; skipped?: RecordRef[]; reflection?: string; weeklyReflection?: string }
+export function cognitiveDefaults(): CognitiveSettings {
+  return { shortcut: 'Space', recommendations: true, weights: { ...DEFAULT_WEIGHTS }, availability: {}, buffer: 25,
+    trackFocus: false, reviewMinutes: 15, pauseReminder: 0 };
+}
 
 export interface Entry {
   subjectId?: string;
+  capture?: Capture;
+  dependencies?: string[];
+  plannedOn?: string;
+  optional?: boolean;
+  activityType?: string;
+  intention?: Intention;
+  continuity?: Continuity;
   id: string;
   title: string;
   note: string;
@@ -48,7 +92,7 @@ export interface Entry {
   completedAt: string | null;
 }
 
-export type EntryInput = Pick<Entry, 'title' | 'note' | 'kind' | 'importance' | 'effort' | 'minutes' | 'dueAt' | 'eventTime' | 'subjectId'>;
+export type EntryInput = Pick<Entry, 'title' | 'note' | 'kind' | 'importance' | 'effort' | 'minutes' | 'dueAt' | 'eventTime' | 'subjectId' | 'dependencies' | 'plannedOn' | 'optional' | 'activityType' | 'intention'>;
 
 export interface Reward {
   id: string;
@@ -66,11 +110,16 @@ export interface Activity {
   points: number;
   minutes?: number;
   entryId?: string;
+  effectiveSeconds?: number;
+  estimateMinutes?: number;
+  interruptions?: number;
+  subjectId?: string;
+  activityType?: string;
   at: string;
 }
 
 export interface AppData {
-  version: 1;
+  version: 2;
   profile: {
     name: string;
     energy: Energy;
@@ -80,6 +129,10 @@ export interface AppData {
     ribbonOrder?: RibbonOrder;
     editorTypography: EditorTypography;
   };
+  cognitive: CognitiveSettings;
+  blocks: TimeBlock[];
+  days: DayPlan[];
+  links: RecordLink[];
   subjects: Subject[];
   subjectVisits: SubjectVisit[];
   notes: StudyNote[];
@@ -87,13 +140,18 @@ export interface AppData {
   entries: Entry[];
   rewards: Reward[];
   activity: Activity[];
-  focus: { entryId: string; startedAt: string } | null;
+  focus: {
+    entryId: string; startedAt: string; goal?: string; targetMinutes?: number; clockStartedAt?: string;
+    accruedSeconds?: number; paused?: boolean; estimateMinutes?: number; interruptions?: number;
+    subjectId?: string; activityType?: string;
+  } | null;
   break: { startedAt: string; minutes: number } | null;
 }
 
 export function emptyData(): AppData {
   return {
-    version: 1,
+    version: 2,
+    cognitive: cognitiveDefaults(), blocks: [], days: [], links: [],
     profile: { name: '', energy: 2, theme: 'system', reducedMotion: false, toolbarMode: 'simple', editorTypography: {} },
     subjects: [
       { id: 'math', icon: 'calculator', title: 'Matemática', color: 'mint' },
@@ -123,4 +181,5 @@ export const KINDS: Record<EntryKind, string> = {
   event: 'Compromisso',
   worry: 'Preocupação',
   idea: 'Ideia',
+  capture: 'Captura',
 };

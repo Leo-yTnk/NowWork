@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, BarChart3, BookOpen, CalendarDays, CheckCircle2, Clock3, LayoutGrid, ListTodo, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock3, LayoutGrid } from 'lucide-react';
 import { Button, Surface } from '../components/ui';
-import { asLocalDate, dueLabel, entryDueLabel, rankedTasks, weekActivity } from '../lib/engine';
+import { asLocalDate, entryDueLabel, weekActivity } from '../lib/engine';
+import { recommendations, intentionPrompt } from '../lib/decision';
+import { dayCapacity, dueOnOrBefore } from '../lib/planning';
+import { dayOffset } from '../lib/localDates';
+import { dueReviews } from '../lib/learning';
+import { sameRef } from '../lib/capture';
 import { areas, routeHref, subjectViews, type SubjectView } from '../lib/navigation';
 import { subjectShortcuts } from '../lib/subjectShortcuts';
 import { useApp } from '../state/AppState';
-import type { Entry } from '../types';
+import { describeRecord } from '../components/RecordLinks';
+import { CapacitySummary } from './CapacityPlanner';
 import { SubjectMark } from './Subjects';
 import morningIllustration from '../assets/hero/morning.webp';
 import afternoonIllustration from '../assets/hero/afternoon.webp';
@@ -13,21 +19,22 @@ import eveningIllustration from '../assets/hero/evening.webp';
 import nightIllustration from '../assets/hero/night.webp';
 
 const heroPeriods = [
-  { start: 19, image: nightIllustration, greeting: 'Boa noite', message: 'Anote o que fica para amanhã e aproveite a noite para descansar.' },
-  { start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde', message: 'Que tal revisar o que aprendeu hoje e organizar o que ainda falta?' },
-  { start: 12, image: afternoonIllustration, greeting: 'Boa tarde', message: 'Escolha uma tarefa e reserve um tempo para avançar com calma.' },
-  { start: 5, image: morningIllustration, greeting: 'Bom dia', message: 'Dê uma olhada na agenda e escolha por onde começar.' },
+  { start: 19, image: nightIllustration, greeting: 'Boa noite' },
+  { start: 17, image: eveningIllustration, greeting: 'Bom fim de tarde' },
+  { start: 12, image: afternoonIllustration, greeting: 'Boa tarde' },
+  { start: 5, image: morningIllustration, greeting: 'Bom dia' },
 ] as const;
+const agenda = routeHref({ area: 'planejar', view: 'agenda' });
+const inbox = routeHref({ area: 'planejar', view: 'entrada' });
 
-const agendaHref = routeHref({ area: 'planejar', view: 'agenda' });
-const countLabel = (count: number, singular: string, plural: string) => count + ' ' + (count === 1 ? singular : plural);
-
-export function Dashboard({ subject, newSubject, focus, add, openTask }: {
-  subject: (id: string, view: SubjectView) => void; newSubject: () => void; focus: () => void;
-  add: () => void; openTask: (id: string) => void;
+export function Dashboard({ subject, focus, capture, openTask }: {
+  subject: (id: string, view: SubjectView) => void; focus: () => void; capture: () => void; openTask: (id: string) => void;
 }) {
-  const { data, completeEntry } = useApp();
+  const app = useApp();
+  const { data } = app;
   const [now, setNow] = useState(() => new Date());
+  const [expanded, setExpanded] = useState(false);
+  const [choose, setChoose] = useState(false);
   useEffect(() => {
     const refresh = () => setNow(new Date());
     const timer = window.setInterval(refresh, 20_000);
@@ -35,145 +42,107 @@ export function Dashboard({ subject, newSubject, focus, add, openTask }: {
     return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, []);
   const today = asLocalDate(now.toISOString());
-  const hour = now.getHours();
-  const hero = heroPeriods.find(({ start }) => hour >= start) ?? heroPeriods[0];
-  const name = data.profile.name.trim();
-  const pending = rankedTasks(data, now);
-  const next = pending[0];
-  const tasks = data.entries.filter((item) => item.kind === 'task');
-  const todayTasks = tasks.filter((item) => item.status !== 'archived' && asLocalDate(item.dueAt) === today);
-  const week = weekActivity(data, now);
-  const done = week.at(-1)?.completed ?? 0;
-  const pendingToday = pending.filter((item) => asLocalDate(item.dueAt) === today);
-  const todayPending = pendingToday[0];
-  const plannedMinutes = pendingToday.reduce((total, task) => total + task.minutes, 0);
-  const horizon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-  const upcoming = data.entries
-    .filter((entry) => {
-      if (entry.status !== 'active' || (entry.kind !== 'task' && entry.kind !== 'event') || !entry.dueAt) return false;
-      const day = asLocalDate(entry.dueAt);
-      return day >= today && new Date(entry.dueAt) < horizon &&
-        (entry.kind !== 'event' || !entry.eventTime || Date.parse(entry.dueAt) >= now.getTime());
-    })
-    .sort((a, b) => Date.parse(a.dueAt ?? '') - Date.parse(b.dueAt ?? ''));
-  const subjects = new Map(data.subjects.map(({ id, title }) => [id, title]));
-  const nextSubject = next?.subjectId ? subjects.get(next.subjectId) : undefined;
-  const isOverdue = (item: Entry) => {
-    const day = asLocalDate(item.dueAt);
-    return day && day < today;
-  };
-  const overdue = pending.filter(isOverdue);
-  const largest = Math.max(1, ...week.map(({ completed }) => completed));
-  const focusMinutes = week.at(-1)?.focusMinutes ?? 0;
-  const weeklyFocus = week.reduce((total, day) => total + day.focusMinutes, 0);
-  const weeklyDone = week.reduce((total, day) => total + day.completed, 0);
+  const tomorrow = dayOffset(today, 1);
+  const plan = data.days.find((day) => day.day === today);
+  const hero = heroPeriods.find(({ start }) => now.getHours() >= start) ?? heroPeriods[0];
+  const capacity = dayCapacity(data, today);
+  const events = data.entries.filter((entry) => entry.kind === 'event' && entry.status === 'active' && entry.dueAt &&
+    Date.parse(entry.dueAt) >= +now && asLocalDate(entry.dueAt) <= dayOffset(today, 7)).sort((a, b) => a.dueAt!.localeCompare(b.dueAt!));
+  const due = dueReviews(data, today);
+  const candidates = recommendations(data, now);
+  const accepted = candidates.filter(({ ref }) => !plan?.skipped?.some((skipped) => sameRef(skipped, ref)));
+  const recommendation = data.cognitive.recommendations && !plan?.closed && !plan?.rest
+    ? accepted.find(({ ref }) => plan?.pinned && sameRef(plan.pinned, ref)) ?? accepted[0] : undefined;
+  const priorities = accepted.flatMap((item) => item.type === 'task' && item.entry.id !== recommendation?.ref.id ? [item.entry] : []);
+  const tasks = data.entries.filter((entry) => entry.kind === 'task' && entry.status === 'active');
+  const relevant = tasks.filter((entry) => dueOnOrBefore(entry, today) || !!entry.intention);
+  const pendingInbox = data.entries.filter((entry) => entry.status === 'active' && ['capture', 'idea', 'worry'].includes(entry.kind));
+  const progress = weekActivity(data, now).at(-1)!;
+  const confirmedMinutes = Math.floor(data.activity.filter((item) => asLocalDate(item.at) === today).reduce((sum, item) => sum + (item.effectiveSeconds ?? 0), 0) / 60);
   const shortcuts = subjectShortcuts(data.subjects, data.subjectVisits, now);
-  const date = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
-  const recommended = overdue[0] ?? todayPending ?? next;
-  const activeFocus = data.focus || data.break;
-  const recommendation = activeFocus
-    ? (data.focus ? 'Retome sua sessão de foco.' : 'Aproveite sua pausa antes de retomar os estudos.')
-    : overdue[0] ? 'Revise o prazo de “' + overdue[0].title + '” e decida qual passo dá para concluir agora.'
-      : todayPending ? 'Reserve ' + todayPending.minutes + ' min para “' + todayPending.title + '”.'
-        : next ? 'Adiante “' + next.title + '” se tiver ' + next.minutes + ' min disponíveis.'
-          : data.subjects.length ? 'Aproveite para revisar uma matéria pelos atalhos.' : 'Crie uma matéria para começar a organizar seus estudos.';
+  const status = plan?.rest ? 'Dia de descanso' : plan?.closed || (progress.completed > 0 && !tasks.length && !events.some((item) => asLocalDate(item.dueAt) === today) && !due.length)
+    ? 'Dia concluído' : capacity.excess > 0 ? 'Dia com excesso de atividades' : data.focus || progress.completed > 0 ? 'Dia em andamento'
+      : capacity.blocks.length || capacity.planned || due.length || events.some((item) => asLocalDate(item.dueAt) === today) ? 'Dia planejado' : 'Dia sem atividades planejadas';
+  const date = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const nextDisplay = recommendation && describeRecord(data, recommendation.ref);
+  const completed = data.entries.filter((entry) => entry.kind === 'task' && asLocalDate(entry.completedAt) === today);
+  const reviewSubjects = [...new Set(due.map(({ subjectId }) => subjectId))];
   return <div className="nw-stack nw-dashboard">
     <header className="surface nw-welcome">
       <img className="nw-welcome-image" src={hero.image} alt="" fetchPriority="high" decoding="async" />
-      <div className="nw-welcome-copy">
-        <time className="nw-date" dateTime={today}><CalendarDays size={15} aria-hidden="true" />{date}</time>
-        <h1>{hero.greeting}{name ? ', ' + name : ''}!</h1>
-        <p>{hero.message}</p>
-      </div>
+      <div className="nw-welcome-copy"><time className="nw-date" dateTime={today}><CalendarDays size={15} aria-hidden="true" />{date}</time>
+        <h1>{hero.greeting}{data.profile.name.trim() ? ', ' + data.profile.name.trim() : ''}!</h1><p>{status}</p></div>
     </header>
-    <div className="today-summary">
-      <Surface className="nw-focus-card today-next">
-        <div className="nw-focus-content">
-          <span className="nw-focus-label"><Clock3 size={16} /> Próxima tarefa</span>
-          <h2>{next?.title || 'Dia livre de pendências'}</h2>
-          <p>{next ? [nextSubject, isOverdue(next) ? 'Prazo vencido' : dueLabel(next.dueAt), next.minutes + ' min'].filter(Boolean).join(' · ') : 'Crie uma tarefa quando tiver algo para fazer.'}</p>
-          <Button icon={<ArrowRight size={16} />} onClick={next ? () => openTask(next.id) : add}>{next ? 'Abrir tarefa' : 'Criar tarefa'}</Button>
-        </div>
-      </Surface>
-      <Surface className="today-checklist">
-        <h2 className="nw-small-heading"><ListTodo size={18} /> Próximas tarefas</h2>
-        {!!pendingToday.length && <p className="today-plan-total nw-muted">{countLabel(pendingToday.length, 'prazo hoje', 'prazos hoje')} · {plannedMinutes} min estimados</p>}
-        {pending.length ? <ul>{pending.slice(0, 4).map((item) => <li key={item.id}>
-          <input type="checkbox" aria-label={'Concluir ' + item.title} checked={false} onChange={() => completeEntry(item.id)} />
-          <button type="button" onClick={() => openTask(item.id)}>{item.title}<small>{isOverdue(item) ? 'Prazo vencido' : dueLabel(item.dueAt)}</small></button>
-        </li>)}</ul> : <p className="nw-muted">Suas próximas tarefas aparecem aqui.</p>}
-      </Surface>
-      {[
-        { label: 'Prazos de hoje', Icon: CalendarDays, tone: 'violet', value: todayTasks.length },
-        { label: 'Concluídas no dia', Icon: CheckCircle2, tone: 'mint', value: done },
-      ].map(({ label, Icon, tone, value }) => <Surface key={label} className="nw-stat today-stat">
-        <span className={'nw-stat-icon tone-' + tone}><Icon size={18} /></span><div><strong>{value}</strong><span>{label}</span></div>
-      </Surface>)}
-    </div>
-
-    <section className="nw-stack" aria-labelledby="today-agenda">
-      <div className="nw-section-heading"><h2 id="today-agenda"><CalendarDays size={19} /> Próximos 7 dias</h2>
-        <a className="subject-directory-link" href={agendaHref} draggable={false}>Abrir agenda <ArrowRight size={15} /></a>
+    <Surface className="nw-focus-card today-next">
+      <div className="nw-focus-content nw-stack">
+        <span className="nw-focus-label"><Clock3 size={16} /> Próxima ação</span>
+        {data.focus || data.break ? <><h2>{data.focus ? 'Retomar a sessão de foco' : 'Pausa em andamento'}</h2>
+          <Button variant="primary" onClick={focus}>Abrir sessão</Button></> : nextDisplay && recommendation ?
+          <><h2>{nextDisplay.title}</h2><p>{recommendation.reason} · {recommendation.minutes} min</p>
+            <div className="nw-toolbar"><Button variant="primary" icon={<ArrowRight size={16} />} onClick={() => { window.location.hash = nextDisplay.href; }}>Abrir {nextDisplay.label.toLowerCase()}</Button>
+            <Button size="sm" onClick={() => app.updateDay(today, { pinned: undefined, skipped: [...(plan?.skipped ?? []), recommendation.ref] })}>Ignorar hoje</Button>
+            <Button size="sm" onClick={() => setChoose(!choose)} aria-expanded={choose}>Escolher outra</Button></div></>
+          : <><h2>{plan?.rest ? 'Tempo reservado para descansar' : plan?.closed ? 'Planejamento encerrado' : 'Escolha seu próximo passo'}</h2>
+            {plan?.closed ? <p>As informações do dia estão guardadas e podem ser retomadas quando você quiser.</p> : <Button onClick={capture}>Capturar algo</Button>}</>}
+        {choose && <label className="field-label">Escolher próxima ação<select className="ds-input" value={plan?.pinned ? plan.pinned.type + ':' + plan.pinned.id : ''}
+          onChange={(event) => {
+            const choice = candidates.find(({ ref }) => ref.type + ':' + ref.id === event.target.value);
+            app.updateDay(today, { pinned: choice?.ref, skipped: plan?.skipped?.filter((ref) => !choice || !sameRef(ref, choice.ref)) });
+            setChoose(false);
+          }}><option value="">Usar recomendação</option>{candidates.map(({ ref }) =>
+            <option key={ref.type + ref.id} value={ref.type + ':' + ref.id}>{describeRecord(data, ref)?.title}</option>)}</select></label>}
+        <details className="cognitive-details"><summary>Opções do dia</summary><div className="nw-toolbar">
+          <Button size="sm" onClick={() => app.updateCognitive({ recommendations: !data.cognitive.recommendations })}>{data.cognitive.recommendations ? 'Desativar' : 'Ativar'} recomendações</Button>
+          <Button size="sm" onClick={() => app.updateDay(today, { rest: !plan?.rest })}>{plan?.rest ? 'Retomar planejamento' : 'Marcar dia de descanso'}</Button>
+          {!!plan?.skipped?.length && <Button size="sm" onClick={() => app.updateDay(today, { skipped: [] })}>Reconsiderar ações</Button>}
+        </div></details>
       </div>
-      <Surface className="today-agenda">
-        {upcoming.length ? <ul>{upcoming.slice(0, 5).map((entry) => {
-          const Icon = entry.kind === 'event' ? CalendarDays : ListTodo;
-          const subjectTitle = entry.subjectId ? subjects.get(entry.subjectId) : undefined;
-          const detail = entry.kind === 'event' ? 'Compromisso' : 'Tarefa';
-          return <li key={entry.id}>
-            <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })} draggable={false}>
-              <Icon size={17} aria-hidden="true" />
-              <span><strong>{entry.title}</strong><small>{[detail, subjectTitle].filter(Boolean).join(' · ')}</small></span>
-              <time dateTime={entry.dueAt ?? undefined}>{entryDueLabel(entry, now)}</time>
-            </a>
-          </li>;
-        })}</ul> : <p className="nw-muted">Nenhum prazo ou compromisso cadastrado para os próximos 7 dias.</p>}
-        {upcoming.length > 5 && <p className="nw-muted">{countLabel(upcoming.length - 5, 'item a mais na agenda', 'itens a mais na agenda')}</p>}
-      </Surface>
-    </section>
-
-    <section className="nw-stack" aria-labelledby="today-dashboard">
-      <div className="nw-section-heading"><h2 id="today-dashboard"><BarChart3 size={19} /> Progresso</h2></div>
-      <div className="today-insights">
-        <Surface className="today-activity">
-          <div className="nw-section-heading"><h3 className="nw-small-heading">Tarefas concluídas</h3><span className="nw-muted">Últimos 7 dias</span></div>
-          <div className="today-chart" role="list" aria-label="Tarefas concluídas nos últimos sete dias">
-            {week.map(({ key, label, completed }) => <div key={key} role="listitem" aria-label={new Date(key).toLocaleDateString('pt-BR') + ', ' + completed + ' concluídas'}>
-              <strong aria-hidden="true">{completed}</strong>
-              <span className="today-bar" aria-hidden="true"><i style={{ height: (completed / largest * 100) + '%' }} /></span>
-              <span aria-hidden="true">{label}</span>
-            </div>)}
-          </div>
-          <div className="today-activity-totals nw-muted">
-            <span><CheckCircle2 size={15} /> {countLabel(weeklyDone, 'tarefa em 7 dias', 'tarefas em 7 dias')}</span>
-            <span><Clock3 size={15} /> {weeklyFocus} min de foco em 7 dias · {focusMinutes} hoje</span>
-          </div>
-        </Surface>
-        <Surface className={'today-advice' + (overdue.length ? ' today-alert' : '')}>
-          <span>{overdue.length ? <TriangleAlert size={18} /> : <Sparkles size={18} />}</span>
-          <h3>{overdue.length ? overdue.length + (overdue.length === 1 ? ' tarefa atrasada' : ' tarefas atrasadas')
-            : done ? done + (done === 1 ? ' tarefa concluída hoje' : ' tarefas concluídas hoje') : todayPending ? 'Seu plano de hoje' : 'Sem prazos atrasados'}</h3>
-          <p>{recommendation}</p>
-          <Button size="sm" icon={<ArrowRight size={15} />}
-            onClick={activeFocus ? focus : recommended ? () => openTask(recommended.id) : shortcuts.length ? () => subject(shortcuts[0].id, 'revisao') : newSubject}>
-            {activeFocus ? 'Ver sessão' : recommended ? 'Ver tarefa' : shortcuts.length ? 'Abrir revisão' : 'Nova matéria'}
-          </Button>
-        </Surface>
-      </div>
-    </section>
-
-    <section className="nw-stack" aria-labelledby="today-shortcuts">
-      <div className="nw-section-heading"><h2 id="today-shortcuts"><LayoutGrid size={19} /> Atalhos</h2>
-        <a className="subject-directory-link" href={routeHref(areas.materias)} draggable={false}>Ver todas <ArrowRight size={15} /></a></div>
-      {shortcuts.length ? <div className="subject-grid today-shortcuts">{shortcuts.map((item) =>
-        <Surface key={item.id} layout className="today-subject">
-          <div className="today-subject-heading"><SubjectMark subject={item} /><strong>{item.title}</strong></div>
-          <div className="today-subject-actions">
-            {subjectViews.map(({ id, label }) => <Button key={id} size="sm" variant="ghost" aria-label={label + ' de ' + item.title}
-              onClick={() => subject(item.id, id)}>{label}</Button>)}
-          </div>
-        </Surface>)}</div> : <Surface className="today-advice"><BookOpen size={18} /><p>Crie uma matéria para acessar caderno, tarefas e revisão por aqui.</p>
-          <Button onClick={newSubject}>Criar primeira matéria</Button></Surface>}
-    </section>
+    </Surface>
+    <Surface className="today-checklist"><h2 className="nw-small-heading">Prioridades do dia</h2>
+      {priorities.length ? <ul>{priorities.slice(0, expanded ? undefined : 3).map((task) => <li key={task.id}>
+        <input type="checkbox" aria-label={'Concluir ' + task.title} checked={false} onChange={() => app.completeEntry(task.id)} />
+        <button type="button" onClick={() => openTask(task.id)}>{task.title}<small>{intentionPrompt(task, data, now) ?? entryDueLabel(task, now)}</small></button>
+      </li>)}</ul> : <p className="nw-muted">Nenhuma outra prioridade disponível.</p>}
+      {priorities.length > 3 && <Button size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Mostrar menos' : 'Mostrar todas'}</Button>}
+    </Surface>
+    <Surface className="nw-padding nw-stack"><h2 className="nw-small-heading">Compromissos próximos</h2>
+      {events.length ? <ul className="cognitive-list">{events.slice(0, 4).map((entry) => <li key={entry.id}><a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })}>{entry.title}</a> · {entryDueLabel(entry, now)}</li>)}</ul>
+        : <p className="nw-muted">Nenhum compromisso nos próximos sete dias.</p>}
+      <a href={agenda}>Abrir agenda</a>
+    </Surface>
+    <Surface className="nw-padding nw-stack"><h2 className="nw-small-heading">Revisões programadas</h2>
+      {due.length ? <><p>{due.length} {due.length === 1 ? 'cartão disponível' : 'cartões disponíveis'} para revisar hoje.</p>
+        <ul className="cognitive-list">{reviewSubjects.slice(0, 4).map((id) => <li key={id}><a href={routeHref({ area: 'materias', subjectId: id, view: 'revisao' })}>{data.subjects.find((item) => item.id === id)?.title}</a></li>)}</ul></>
+        : <p className="nw-muted">Nenhuma revisão prevista para hoje.</p>}
+    </Surface>
+    <Surface className="nw-padding nw-stack"><h2 className="nw-small-heading">Capacidade diária</h2><CapacitySummary capacity={capacity} /><a href={agenda}>Ajustar na agenda</a></Surface>
+    <Surface className="nw-padding nw-stack"><h2 className="nw-small-heading">Pendências relevantes</h2>
+      <ul className="cognitive-list">{relevant.slice(0, 4).map((entry) => <li key={entry.id}><a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: entry.id })}>{entry.title}</a></li>)}</ul>
+      <a href={inbox}>Caixa de entrada · {pendingInbox.length} a processar</a>
+    </Surface>
+    <Surface className="nw-padding nw-stack"><h2 className="nw-small-heading">Resumo de progresso</h2>
+      <p>{progress.completed} {progress.completed === 1 ? 'tarefa concluída' : 'tarefas concluídas'} hoje{confirmedMinutes > 0 ? ' · ' + confirmedMinutes + ' min de estudo efetivo confirmado' : ''}</p>
+      <a href={routeHref({ area: 'estudar', view: 'progresso' })}>Ver progresso e revisão semanal</a>
+    </Surface>
+    <Surface className="nw-padding"><details className="cognitive-details">
+      <summary>Revisar e encerrar o dia</summary>
+      <p>Concluídas: {completed.length ? completed.map(({ title }) => title).join(', ') : 'nenhuma hoje'}.</p>
+      <p>Amanhã: {data.entries.filter((entry) => entry.kind === 'event' && entry.status === 'active' && asLocalDate(entry.dueAt) === tomorrow)
+        .map(({ title }) => title).join(', ') || 'sem compromissos registrados'}. {dueReviews(data, tomorrow).length} revisões disponíveis até amanhã.</p>
+      <p><a href={inbox}>{pendingInbox.length} capturas a processar</a></p>
+      <ul className="cognitive-list">{relevant.slice(0, 6).map((task) => <li key={task.id} className="cognitive-line">
+        <a href={routeHref({ area: 'planejar', view: 'tarefas', entryId: task.id })}>{task.title}</a>
+        <Button size="sm" onClick={() => app.planEntry(task.id, tomorrow)}>Planejar para amanhã</Button></li>)}</ul>
+      <label className="field-label">Próxima ação ou nota para amanhã<textarea className="ds-input" rows={2} value={plan?.reflection ?? ''}
+        onChange={(event) => app.updateDay(today, { reflection: event.target.value })} /></label>
+      <Button size="sm" onClick={() => app.updateDay(today, { closed: !plan?.closed })}>{plan?.closed ? 'Reabrir o dia' : 'Encerrar planejamento'}</Button>
+    </details></Surface>
+    {shortcuts.length > 0 && <details className="cognitive-details"><summary><LayoutGrid size={16} /> Atalhos de matérias</summary>
+      <div className="subject-grid today-shortcuts">{shortcuts.map((item) => <Surface key={item.id} className="today-subject">
+        <div className="today-subject-heading"><SubjectMark subject={item} /><strong>{item.title}</strong></div>
+        <div className="today-subject-actions">{subjectViews.map(({ id, label }) => <Button key={id} size="sm" variant="ghost"
+          onClick={() => subject(item.id, id)}>{label}</Button>)}</div></Surface>)}</div>
+      <a href={routeHref(areas.materias)}>Ver todas as matérias</a>
+    </details>}
   </div>;
 }

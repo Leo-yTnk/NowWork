@@ -17,6 +17,7 @@ import './styles/navigation.css';
 import './styles/editor-fonts.css';
 import './styles/document.css';
 import './styles/collections.css';
+import './styles/cognitive.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>,

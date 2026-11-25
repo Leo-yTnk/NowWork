@@ -1,3 +1,4 @@
+import { RecordLinks } from '../components/RecordLinks';
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentPropsWithoutRef, type FormEvent } from 'react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import { BookOpen, FilePenLine, FileText, Pencil, Trash2 } from 'lucide-react';
@@ -65,11 +66,12 @@ function PageLink({ onEdit, onRename, onClick, ...props }: ComponentPropsWithout
   </ContextMenu.Root>;
 }
 
-export function Notebook({ subjectId, noteId, open, pageControls }: {
-  subjectId: string; noteId?: string; open: (id?: string) => void; pageControls?: PageControls;
+export function Notebook({ subjectId, noteId, open, captureQuestion, createCard, pageControls }: {
+  subjectId: string; noteId?: string; open: (id?: string) => void; pageControls?: PageControls; captureQuestion?: (text: string) => void; createCard?: (text: string) => void;
 }) {
   const app = useApp();
   const [title, setTitle] = useState('');
+  const [topic, setTopic] = useState('');
   const [widthSettings, setWidthSettings] = useState<HTMLDivElement | null>(null);
   const [rename, setRename] = useState<{ id: string; title: string } | null>(null);
   const { mobile, pagesOpen } = pageControls ?? {};
@@ -77,6 +79,8 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
   const subject = app.data.subjects.find(({ id }) => id === subjectId);
   const notes = app.data.notes.filter((note) => note.subjectId === subjectId);
   const note = notes.find(({ id }) => id === noteId);
+  const topics = [...new Set(notes.flatMap((page) => page.topic ? [page.topic] : []))];
+  const visible = topic ? notes.filter((page) => page.topic === topic) : notes;
   useEffect(() => {
     if (mobile && pagesOpen) sidebar.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus({ preventScroll: true });
   }, [mobile, pagesOpen]);
@@ -85,7 +89,7 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
     event.preventDefault();
     if (!title.trim()) return;
     const id = uid();
-    app.saveNote({ id, subjectId, title: title.trim(), blocks: [], content: fromBlocks([]), updatedAt: '' });
+    app.saveNote({ id, subjectId, title: title.trim(), topic: topic || undefined, blocks: [], content: fromBlocks([]), updatedAt: '' });
     setTitle('');
     open(id);
   };
@@ -115,14 +119,17 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
         onChange={(event) => setTitle(event.target.value)} />
       <CreateButton type="submit">Nova página</CreateButton>
     </form>
-    {notes.length ? <ul className="notebook-page-list">{notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((page) => <li key={page.id}>
+    {topics.length > 0 && <label className="field-label">Tópico<select className="ds-input" value={topic} onChange={(event) => setTopic(event.target.value)}>
+      <option value="">Todos os tópicos</option>{topics.map((value) => <option key={value}>{value}</option>)}
+    </select></label>}
+    {visible.length ? <ul className="notebook-page-list">{visible.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((page) => <li key={page.id}>
       <PageLink href={routeHref({ area: 'materias', subjectId, view: 'caderno', noteId: page.id })}
         onEdit={() => open(page.id)} onRename={() => setRename({ id: page.id, title: page.title })}>
         <FileText size={19} aria-hidden="true" />
         <span><strong>{page.title || 'Sem título'}</strong>
-          <small>{noteText(page).slice(0, 180) || 'Página em branco'}</small></span>
+          <small>{[page.topic, noteText(page).slice(0, 180)].filter(Boolean).join(' · ') || 'Página em branco'}</small></span>
       </PageLink>
-    </li>)}</ul> : <Surface><EmptyState icon={<BookOpen size={23} />} title="Seu caderno está em branco"
+    </li>)}</ul> : <Surface><EmptyState icon={<BookOpen size={23} />} title={topic ? 'Nenhuma página neste tópico' : 'Seu caderno está em branco'}
       description="Crie uma página para guardar os resumos, exercícios e links desta matéria." /></Surface>}
     {renameSheet}
   </Stack>;
@@ -153,10 +160,12 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
       <header className="document-page-heading">
         <a href={routeHref({ area: 'materias', subjectId, view: 'caderno' })} draggable={false}>{subject?.title || 'Caderno'}</a>
         <h1>{note.title || 'Sem título'}</h1>
+        {note.topic && <p className="nw-muted">{note.topic}</p>}
+        <div className="cognitive-notebook-links"><RecordLinks record={{ type: 'note', id: note.id }} /></div>
       </header>
       <Suspense fallback={<p role="status" className="document-loading nw-muted">Abrindo editor…</p>}>
         <RichTextEditor key={note.id} content={note.content || fromBlocks(note.blocks)}
-          widthSettings={widthSettings} onChange={(content) => app.updateNote(note.id, { content })} />
+          widthSettings={widthSettings} captureQuestion={captureQuestion} createCard={createCard} onChange={(content) => app.updateNote(note.id, { content })} />
       </Suspense>
     </div>
     {renameSheet}
@@ -167,6 +176,8 @@ export function Notebook({ subjectId, noteId, open, pageControls }: {
           <input className="ds-input" aria-label="Título da página" value={note.title} placeholder="Sem título" maxLength={150}
             onChange={(event) => app.updateNote(note.id, { title: event.target.value })} />
         </details>
+        <label className="field-label">Tópico (opcional)<input className="ds-input" value={note.topic ?? ''} maxLength={100}
+          onChange={(event) => app.updateNote(note.id, { topic: event.target.value || undefined })} /></label>
         <section className="document-editor-settings">
           <h3>Configurações do editor</h3>
           <div className="field-label">Barra de ferramentas

@@ -1,55 +1,72 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Layers, Pencil, Trash2 } from 'lucide-react';
 import { Button, CreateButton, EmptyState, Surface } from '../components/ui';
+import { RecordLinks } from '../components/RecordLinks';
 import { useApp } from '../state/AppState';
-import { uid, type Flashcard } from '../types';
+import { uid, type Flashcard, type ReviewGrade } from '../types';
 import { asLocalDate } from '../lib/engine';
+import { dueReviews, gradeLabels, reviewModes, reviewedOn, scheduleReview } from '../lib/learning';
+import { dayOffset } from '../lib/localDates';
+import { FlashcardForm } from './FlashcardForm';
+import { dayCapacity } from '../lib/planning';
 
-export function Review({ subjectId }: { subjectId: string }) {
+export function Review({ subjectId, selectedId }: { subjectId: string; selectedId?: string }) {
   const app = useApp();
   const cards = app.data.flashcards.filter((card) => card.subjectId === subjectId);
   const now = asLocalDate(new Date().toISOString());
-  const due = cards.filter((card) => card.due <= now).sort((a, b) => a.due.localeCompare(b.due));
-  const next = due[0];
+  const [topic, setTopic] = useState('');
+  const [played, setPlayed] = useState(0);
+  const [continued, setContinued] = useState(false);
   const [revealed, setRevealed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState('');
   const [draft, setDraft] = useState<Flashcard | null>(null);
-  const [graded, setGraded] = useState(0);
-  const grade = (card: Flashcard, remembered: boolean) => {
-    const interval = remembered ? Math.min(60, Math.max(2, card.interval * 2)) : 1;
-    const date = new Date();
-    date.setDate(date.getDate() + interval);
-    app.saveFlashcard({ ...card, interval, due: asLocalDate(date.toISOString()) });
+  const [finishedSelected, setFinishedSelected] = useState(false);
+  const due = dueReviews(app.data, now).filter((card) => card.subjectId === subjectId && (!topic || card.topic === topic));
+  const capacity = dayCapacity(app.data, now);
+  const reviewMinutes = Math.min(app.data.cognitive.reviewMinutes, capacity.configured ? Math.max(0, capacity.free - capacity.margin - capacity.planned) : Infinity);
+  const planned = Math.floor(reviewMinutes / 3);
+  const reached = !continued && Math.max(played, reviewedOn(app.data, now)) >= planned;
+  const direct = !finishedSelected ? cards.find(({ id }) => id === selectedId) : undefined;
+  const next = direct ?? (!reached ? due[0] : undefined);
+  const grade = (card: Flashcard, result: ReviewGrade) => {
+    app.saveFlashcard(scheduleReview(card, result, new Date()));
     setRevealed(null);
-    setGraded((count) => count + 1);
-  };
-  const save = (event: FormEvent) => {
-    event.preventDefault();
-    if (!draft?.front.trim() || !draft.back.trim()) return;
-    app.saveFlashcard({ ...draft, front: draft.front.trim(), back: draft.back.trim() });
-    setDraft(null);
+    setAttempt('');
+    if (card.id === selectedId) setFinishedSelected(true);
+    setPlayed((count) => count + 1);
   };
   return <div className="nw-stack">
-    <div className="nw-section-heading"><div><h2>Revisão espaçada</h2><span className="nw-muted">{due.length} para revisar hoje{graded > 0 && ` · ${graded} nesta sessão`}</span></div>
+    <div className="nw-section-heading nw-wrap"><div><h2>Revisão espaçada</h2><span className="nw-muted">{due.length} para revisar hoje{played > 0 && ' · ' + played + ' nesta sessão'}</span></div>
       <CreateButton onClick={() => setDraft({ id: uid(), subjectId, front: '', back: '', due: now, interval: 0 })}>Novo cartão</CreateButton></div>
-    {draft && <Surface className="nw-padding"><form className="nw-stack" onSubmit={save}>
-      <label className="field-label">Pergunta<textarea required rows={2} maxLength={1000} value={draft.front} onChange={(event) => setDraft({ ...draft, front: event.target.value })} /></label>
-      <label className="field-label">Resposta<textarea required rows={3} maxLength={5000} value={draft.back} onChange={(event) => setDraft({ ...draft, back: event.target.value })} /></label>
-      <div className="nw-toolbar"><Button type="submit" variant="primary">Salvar cartão</Button><Button onClick={() => setDraft(null)}>Cancelar</Button></div>
-    </form></Surface>}
+    {cards.some((card) => card.topic) && <label className="field-label">Revisar por tópico<select className="ds-input" value={topic} onChange={(event) => {
+      setTopic(event.target.value); setAttempt(''); setRevealed(null); setFinishedSelected(true);
+    }}><option value="">Todos</option>{[...new Set(cards.flatMap((card) => card.topic ? [card.topic] : []))].map((label) => <option key={label}>{label}</option>)}</select></label>}
+    {draft && <Surface className="nw-padding"><FlashcardForm key={draft.id} card={draft}
+      save={(card) => { app.saveFlashcard(card); setDraft(null); }} close={() => setDraft(null)} /></Surface>}
     {next ? <Surface className="nw-review-card" layout>
-      <span className="nw-muted">Pergunta</span><h3>{next.front}</h3>
-      {revealed === next.id ? <div className="nw-stack"><div className="nw-answer">{next.back}</div><div className="nw-toolbar">
-        <Button onClick={() => grade(next, false)}>Rever amanhã</Button>
-        <Button variant="primary" onClick={() => grade(next, true)}>Lembrei · {Math.min(60, Math.max(2, next.interval * 2))} dias</Button>
-      </div></div> : <Button onClick={() => setRevealed(next.id)}>Mostrar resposta</Button>}
-    </Surface> : <Surface><EmptyState icon={<Layers size={23} />} title={cards.length ? 'Revisões em dia' : 'Crie seu primeiro cartão'}
-      description={cards.length ? 'Os próximos cartões aparecem aqui na data programada.' : 'Transforme um conceito em uma pergunta e tente responder antes de conferir.'} /></Surface>}
-    {cards.length > 0 && <div className="nw-stack"><h2 className="nw-small-heading">Todos os cartões</h2>{cards.map((card) => <Surface className="nw-list-card" key={card.id}>
-      <div><strong>{card.front}</strong><span className="nw-muted"> {card.due <= now ? 'Para revisar' : new Date(card.due + 'T12:00:00').toLocaleDateString('pt-BR')}</span></div>
-      <button type="button" className="nw-icon" aria-label="Editar cartão" onClick={() => setDraft(card)}><Pencil size={16} /></button>
-      <button type="button" className="nw-icon" aria-label="Excluir cartão" onClick={() => {
-        if (window.confirm('Excluir este cartão de revisão?')) { app.removeFlashcard(card.id); if (draft?.id === card.id) setDraft(null); }
-      }}><Trash2 size={16} /></button>
-    </Surface>)}</div>}
+      <span className="nw-muted">{reviewModes[next.mode ?? 'flashcard']}</span><h3>{next.front}</h3>
+      {revealed === next.id ? <div className="nw-stack">{attempt.trim() && <p className="cognitive-content">Sua tentativa: {attempt}</p>}
+        <div className="nw-answer">{next.back}</div>
+        <p className="nw-muted">{next.mode === 'explain' || next.mode === 'open' ? 'Compare o raciocínio, os exemplos e os pontos que ficaram de fora.' : 'Compare sua tentativa com a resposta e avalie quanto conseguiu recuperar.'}</p>
+        <div className="nw-toolbar">{Object.entries(gradeLabels).map(([result, label]) =>
+          <Button key={result} onClick={() => grade(next, result as ReviewGrade)}>{label}</Button>)}</div>
+      </div> : <form className="nw-stack" onSubmit={(event) => { event.preventDefault(); setRevealed(next.id); }}>
+        <label className="field-label">Sua tentativa (opcional)<textarea rows={3} value={attempt} onChange={(event) => setAttempt(event.target.value)} /></label>
+        <div className="nw-toolbar"><Button variant="primary" type="submit">{attempt.trim() ? 'Conferir resposta' : 'Mostrar resposta'}</Button>
+          <Button onClick={() => { app.saveFlashcard({ ...next, due: dayOffset(now, 1) }); setFinishedSelected(true); setAttempt(''); }}>Reagendar para amanhã</Button></div>
+      </form>}
+      <RecordLinks record={{ type: 'card', id: next.id }} />
+    </Surface> : <Surface><EmptyState icon={<Layers size={23} />} title={due.length && reached ? 'Limite sugerido de revisão para hoje' : cards.length ? 'Revisões em dia' : 'Crie seu primeiro cartão'}
+      description={due.length && reached ? 'Você pode continuar agora ou retomar as revisões restantes mais tarde.' : 'Os cartões ficam disponíveis de acordo com as datas programadas.'}
+      action={due.length && reached ? <Button onClick={() => setContinued(true)}>Continuar revisão</Button> : undefined} /></Surface>}
+    {cards.length > 0 && <details className="cognitive-details"><summary>Todos os cartões ({cards.length})</summary>
+      <div className="nw-stack">{cards.map((card) => <Surface className="nw-list-card" key={card.id}>
+        <div><strong>{card.front}</strong><p className="nw-muted">{card.due <= now ? 'Para revisar' : new Date(card.due + 'T12:00:00').toLocaleDateString('pt-BR')}</p></div>
+        <div className="nw-toolbar"><button type="button" className="nw-icon" aria-label={'Editar cartão ' + card.front} onClick={() => setDraft(card)}><Pencil size={16} /></button>
+        <button type="button" className="nw-icon" aria-label={'Excluir cartão ' + card.front} onClick={() => {
+          if (window.confirm('Excluir este cartão de revisão e seu histórico?')) { app.removeFlashcard(card.id); if (draft?.id === card.id) setDraft(null); }
+        }}><Trash2 size={16} /></button></div>
+      </Surface>)}</div>
+    </details>}
   </div>;
 }

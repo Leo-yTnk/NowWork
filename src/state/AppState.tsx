@@ -1,8 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { emptyData, uid } from '../types';
-import type { AppData, Entry, EntryInput, Reward, Step, Subject, StudyNote, Flashcard } from '../types';
+import type { AppData, CaptureKind, CognitiveSettings, Continuity, DayPlan, Entry, EntryInput, Flashcard, RecordRef, Reward, Step, Subject, StudyNote } from '../types';
 import { pointsBalance, pointsFor } from '../lib/engine';
 import { withDemo } from '../lib/demo';
+import { convertCapture, linkRecords, makeCapture, type Conversion } from '../lib/capture';
+import { canApplyBlocks, cyclicDependency, isExecutable, rescheduleEntry, type BlockProposal } from '../lib/planning';
+import { focusSeconds } from '../lib/learning';
+import { asLocalDate } from '../lib/engine';
+import { dayOffset } from '../lib/localDates';
 import { loadData, StorageConflictError } from '../lib/storage';
 
 interface ToastState { id: string; message: string; undo?: boolean }
@@ -18,12 +23,24 @@ interface AppContextValue {
   saveSubject: (subject: Subject) => void;
   removeSubject: (id: string) => void;
   saveNote: (note: StudyNote) => void;
-  updateNote: (id: string, patch: Partial<Pick<StudyNote, 'title' | 'content'>>) => void;
+  updateNote: (id: string, patch: Partial<Pick<StudyNote, 'title' | 'content' | 'topic'>>) => void;
   removeNote: (id: string) => void;
   saveFlashcard: (card: Flashcard) => void;
   removeFlashcard: (id: string) => void;
   updateProfile: (patch: Partial<AppData['profile']>) => void;
   addEntry: (entry: EntryInput) => void;
+  capture: (content: string, options?: { classification?: CaptureKind; subjectId?: string; noteId?: string }) => void;
+  editCapture: (id: string, content: string, classification?: CaptureKind) => void;
+  processInbox: (ids: string[], action: 'archive' | 'delete' | 'defer' | 'restore' | 'subject', value?: string) => void;
+  convertInbox: (ids: string[], conversion: Conversion) => void;
+  link: (from: RecordRef, to: RecordRef) => void;
+  updateCognitive: (patch: Partial<CognitiveSettings>) => void;
+  updateDay: (day: string, patch: Omit<DayPlan, 'day'>) => void;
+  applyBlocks: (proposals: BlockProposal[], suggested?: boolean) => boolean;
+  removeBlock: (id: string) => void;
+  planEntry: (id: string, day: string) => void;
+  clearFocusMetrics: () => void;
+  clearReviewMetrics: () => void;
   editEntry: (id: string, patch: EntryInput) => void;
   completeEntry: (id: string) => void;
   reopenEntry: (id: string) => void;
@@ -35,8 +52,11 @@ interface AppContextValue {
   divideEntry: (id: string) => void;
   addStep: (id: string, title: string) => void;
   toggleStep: (id: string, stepId: string) => void;
-  startFocus: (id: string) => void;
-  finishFocus: () => void;
+  startFocus: (id: string, goal?: string, targetMinutes?: number) => void;
+  toggleFocusPause: () => void;
+  recordInterruption: () => void;
+  saveContinuity: (id: string, continuity: Continuity) => void;
+  finishFocus: (continuity?: Continuity, effective?: boolean, effectiveMinutes?: number) => void;
   startBreak: (minutes: number) => void;
   finishBreak: () => void;
   addReward: (title: string, cost: number) => void;
@@ -51,10 +71,14 @@ interface AppContextValue {
 const Context = createContext<AppContextValue | null>(null);
 const stamped = () => new Date().toISOString();
 
-function focusEvent(focus: AppData['focus']) {
+function focusEvent(focus: AppData['focus'], effective = false, effectiveMinutes?: number) {
   if (!focus) return null;
-  const minutes = Math.floor(Math.max(0, Date.now() - Date.parse(focus.startedAt)) / 60000);
-  return minutes > 0 ? { id: uid(), at: stamped(), kind: 'focus' as const, label: 'Tempo de concentração', points: 0, minutes, entryId: focus.entryId } : null;
+  const now = new Date();
+  const seconds = Math.min(focusSeconds(focus, now), effectiveMinutes === undefined ? Infinity : Math.max(0, Math.floor(effectiveMinutes * 60)));
+  if (!effective || seconds <= 0) return null;
+  return { id: uid(), at: now.toISOString(), kind: 'focus' as const, label: 'Estudo efetivo confirmado', points: 0,
+    minutes: Math.floor(seconds / 60), effectiveSeconds: seconds, entryId: focus.entryId, estimateMinutes: focus.estimateMinutes,
+    interruptions: focus.interruptions, subjectId: focus.subjectId, activityType: focus.activityType };
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -66,9 +90,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const lastScheduled = useRef<AppData | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const deletedRef = useRef<{ entry: Entry; index: number } | null>(null);
+  const undoAction = useRef<(() => void) | null>(null);
+  const capturePending = useRef(new Set<string>());
+  const queuedMessage = useRef<string | null>(null);
+  const announce = (message: string, undo?: () => void) => {
+    undoAction.current = undo ?? null;
+    setToast({ id: uid(), message, undo: !!undo });
+  };
 
-  const notify = (message: string, undo = false) => setToast({ id: uid(), message, undo });
-  const dismissToast = () => setToast(null);
+  const notify = (message: string) => {
+    if (data.focus) { queuedMessage.current = message; return; }
+    if (undoAction.current) return;
+    announce(message);
+  };
+  const dismissToast = () => { undoAction.current = null; setToast(null); };
 
   useEffect(() => {
     let alive = true;
@@ -82,17 +117,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }).catch(() => { if (alive) setLoadFailed(true); });
     return () => { alive = false; };
   }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const local = workspace.current;
     if (!ready || !local || data === lastScheduled.current) return;
     lastScheduled.current = data;
-    local.save(data).then(() => setSaveError(null)).catch((error: unknown) => {
+    const captures = [...capturePending.current].filter((id) => data.entries.some((entry) => entry.id === id));
+    for (const id of captures) capturePending.current.delete(id);
+    local.save(data).then(() => {
+      setSaveError(null);
+      if (captures.length) announce('Captura guardada.', () => setData((current) => ({
+        ...current, entries: current.entries.filter((entry) => !captures.includes(entry.id) || entry.capture?.convertedTo),
+        links: current.links.filter((edge) => ![edge.from, edge.to].some((ref) => ref.type === 'entry' && captures.includes(ref.id) &&
+          !current.entries.find((entry) => entry.id === ref.id)?.capture?.convertedTo)),
+      })));
+    }).catch((error: unknown) => {
       setSaveError(error instanceof StorageConflictError ? error.message : local.warning ?? 'O salvamento local falhou. Exporte um backup para guardar suas mudanças.');
     });
   }, [data, ready]);
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast((current) => current?.id === toast.id ? null : current), 4500);
+    const timer = window.setTimeout(dismissToast, toast.undo ? 10000 : 4500);
     return () => clearTimeout(timer);
   }, [toast]);
   useEffect(() => {
@@ -127,7 +171,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     flashcards: d.flashcards.filter((card) => card.subjectId !== id),
   }));
   const saveNote = (note: StudyNote) => setData((d) => ({ ...d, notes: upsert(d.notes, { ...note, updatedAt: stamped() }) }));
-  const updateNote = (id: string, patch: Partial<Pick<StudyNote, 'title' | 'content'>>) => setData((d) => ({
+  const updateNote = (id: string, patch: Partial<Pick<StudyNote, 'title' | 'content' | 'topic'>>) => setData((d) => ({
     ...d, notes: d.notes.map((note) => note.id === id ? { ...note, ...patch, updatedAt: stamped() } : note),
   }));
   const removeNote = (id: string) => setData((d) => ({ ...d, notes: d.notes.filter((note) => note.id !== id) }));
@@ -144,7 +188,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData((d) => ({ ...d, entries: [entry, ...d.entries] }));
     notify(input.kind === 'worry' ? 'Preocupação acolhida. Você não precisa resolvê-la agora.' : 'Registrado. Pode tirar isso da cabeça.');
   };
+  const capture: AppContextValue['capture'] = (content, options = {}) => {
+    if (!content.trim() || !ready) return;
+    const entry = makeCapture(content, options);
+    capturePending.current.add(entry.id);
+    setData((d) => {
+      const next = { ...d, entries: [entry, ...d.entries] };
+      return options.noteId ? linkRecords(next, { type: 'note', id: options.noteId }, { type: 'entry', id: entry.id }) : next;
+    });
+  };
+  const editCapture: AppContextValue['editCapture'] = (id, content, classification) => {
+    if (!content.trim()) return;
+    const title = content.trim().split(/\r?\n/, 1)[0].slice(0, 200);
+    setData((d) => ({ ...d, entries: d.entries.map((entry) => entry.id === id && entry.status === 'active'
+      ? { ...entry, title, capture: { ...entry.capture, content, classification }, updatedAt: stamped() } : entry) }));
+    notify('Captura atualizada.');
+  };
+  const processInbox: AppContextValue['processInbox'] = (ids, action, value) => {
+    const selected = new Set(ids);
+    const previous = data.entries.flatMap((entry, index) => selected.has(entry.id) ? [{ entry, index }] : []);
+    const at = stamped();
+    setData((d) => ({ ...d, entries: d.entries.flatMap((entry) => {
+      if (!selected.has(entry.id)) return [entry];
+      if (action === 'delete') return [];
+      if (action === 'subject') return [{ ...entry, subjectId: value || undefined, updatedAt: at }];
+      if (action === 'defer') return [{ ...entry, updatedAt: at, capture: {
+        content: entry.capture?.content ?? [entry.title, entry.note].filter(Boolean).join('\n'), ...entry.capture, deferredUntil: value,
+      } }];
+      if (action === 'restore' && entry.capture?.convertedTo) return [entry];
+      return [{ ...entry, updatedAt: at, status: action === 'archive' ? 'archived' as const : 'active' as const,
+        capture: entry.capture ? { ...entry.capture, deferredUntil: undefined } : undefined }];
+    }) }));
+    if (action === 'delete') announce('Registros excluídos.', () => setData((d) => {
+      const entries = [...d.entries];
+      for (const { entry, index } of previous) if (!entries.some(({ id }) => id === entry.id)) entries.splice(index, 0, entry);
+      return { ...d, entries };
+    }));
+    else notify(action === 'defer' ? 'Classificação adiada.' : 'Caixa de entrada atualizada.');
+  };
+  const convertInbox: AppContextValue['convertInbox'] = (ids, conversion) => {
+    const targets = ids.map((id) => [id, uid()] as const);
+    setData((d) => targets.reduce((next, [id, target]) => convertCapture(next, id, { ...conversion, answer: conversion.answers?.[id] ?? conversion.answer }, target), d));
+    notify('Registros processados. O conteúdo original está no arquivo.');
+  };
+  const link: AppContextValue['link'] = (from, to) => setData((d) => linkRecords(d, from, to));
+  const updateCognitive: AppContextValue['updateCognitive'] = (patch) => setData((d) => ({ ...d, cognitive: { ...d.cognitive, ...patch } }));
+  const updateDay: AppContextValue['updateDay'] = (day, patch) => setData((d) => ({
+    ...d, days: [...d.days.filter((item) => item.day !== day), { ...d.days.find((item) => item.day === day), ...patch, day }],
+  }));
+  const applyBlocks: AppContextValue['applyBlocks'] = (proposals, suggested = false) => {
+    if (!proposals.length || !canApplyBlocks(data, proposals, suggested)) return false;
+    const blocks = proposals.map((proposal) => ({ ...proposal, id: uid() }));
+    setData((d) => {
+      if (!canApplyBlocks(d, proposals, suggested)) return d;
+      return { ...d, blocks: [...d.blocks, ...blocks] };
+    });
+    return true;
+  };
+  const removeBlock = (id: string) => {
+    const removed = data.blocks.find((block) => block.id === id);
+    if (!removed) return;
+    setData((d) => ({ ...d, blocks: d.blocks.filter((block) => block.id !== id) }));
+    announce('Bloco removido.', () => setData((d) => ({ ...d, blocks: [...d.blocks, removed] })));
+  };
+  const planEntry: AppContextValue['planEntry'] = (id, day) => setData((d) => rescheduleEntry(d, id, day));
+  const clearFocusMetrics = () => setData((d) => ({ ...d, activity: d.activity.filter(({ kind }) => kind !== 'focus') }));
+  const clearReviewMetrics = () => setData((d) => ({ ...d, flashcards: d.flashcards.map((card) => ({ ...card, history: undefined })) }));
   const editEntry = (id: string, patch: EntryInput) => {
+    if (patch.dependencies?.some((dependency) => cyclicDependency(data.entries, id, dependency))) {
+      notify('Escolha pré-requisitos que não dependam desta tarefa.');
+      return;
+    }
     setData((d) => ({ ...d, entries: d.entries.map((e) => e.id === id ? { ...e, ...patch, updatedAt: stamped() } : e) }));
     notify('Alterações salvas.');
   };
@@ -153,14 +267,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const entry = d.entries.find((e) => e.id === id);
       if (!entry || entry.status !== 'active') return d;
       const points = entry.kind === 'task' && !d.activity.some((item) => item.kind === 'complete' && item.entryId === id) ? pointsFor(entry) : 0;
-      const focus = d.focus?.entryId === id ? focusEvent(d.focus) : null;
+
       return {
         ...d,
         entries: d.entries.map((e) => e.id === id ? { ...e, status: 'done', completedAt: stamped(), updatedAt: stamped() } : e),
         focus: d.focus?.entryId === id ? null : d.focus,
         activity: [
           { id: uid(), at: stamped(), kind: 'complete', label: entry.title, points, entryId: id },
-          ...(focus ? [focus] : []), ...d.activity,
+          ...d.activity,
         ],
       };
     });
@@ -171,19 +285,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const postponeEntry = (id: string) => {
     setData((d) => ({ ...d, entries: d.entries.map((entry) => {
       if (entry.id !== id || entry.status !== 'active') return entry;
-      const base = new Date(Math.max(Date.now(), entry.dueAt ? Date.parse(entry.dueAt) || 0 : 0));
-      base.setDate(base.getDate() + 1);
-      base.setHours(23, 59, 0, 0);
-      return { ...entry, dueAt: base.toISOString(), postponeCount: entry.postponeCount + 1, updatedAt: stamped() };
+      if (entry.kind !== 'task') return entry;
+      const day = asLocalDate(stamped());
+      const base = entry.plannedOn && entry.plannedOn > day ? entry.plannedOn : day;
+      return { ...entry, plannedOn: dayOffset(base, 1), postponeCount: entry.postponeCount + 1, updatedAt: stamped() };
     }) }));
-    notify('Adiada em um dia. Sem culpa.');
+    notify('Atividade planejada para um dia depois.');
   };
   const archiveEntry = (id: string) => {
     setData((d) => {
       const activeFocus = d.focus?.entryId === id;
-      const focus = activeFocus ? focusEvent(d.focus) : null;
+
       return { ...d, entries: d.entries.map((e) => e.id === id ? { ...e, status: 'archived', updatedAt: stamped() } : e),
-        focus: activeFocus ? null : d.focus, activity: focus ? [focus, ...d.activity] : d.activity };
+        focus: activeFocus ? null : d.focus };
     });
     notify('Registro arquivado.');
   };
@@ -198,19 +312,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deletedRef.current = { entry: d.entries[index], index };
       return { ...d, entries: d.entries.filter((e) => e.id !== id), focus: d.focus?.entryId === id ? null : d.focus };
     });
-    notify('Registro excluído.', true);
+    announce('Registro excluído.', () => {
+      const snapshot = deletedRef.current;
+      if (!snapshot) return;
+      deletedRef.current = null;
+      setData((d) => {
+        if (d.entries.some((e) => e.id === snapshot.entry.id)) return d;
+        const entries = [...d.entries];
+        entries.splice(Math.min(snapshot.index, entries.length), 0, snapshot.entry);
+        return { ...d, entries };
+      });
+    });
   };
   const undoDelete = () => {
-    const snapshot = deletedRef.current;
-    if (!snapshot) return;
-    deletedRef.current = null;
-    setData((d) => {
-      if (d.entries.some((e) => e.id === snapshot.entry.id)) return d;
-      const entries = [...d.entries];
-      entries.splice(Math.min(snapshot.index, entries.length), 0, snapshot.entry);
-      return { ...d, entries };
-    });
-    notify('Exclusão desfeita.');
+    const undo = undoAction.current;
+    if (!undo) return;
+    undoAction.current = null;
+    undo();
+    announce('Ação desfeita.');
   };
   const divideEntry = (id: string) => {
     setData((d) => ({ ...d, entries: d.entries.map((e) => {
@@ -242,25 +361,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
     });
   };
-  const startFocus = (id: string) => {
-    if (data.focus || data.break) { notify('Encerre a sessão atual antes de começar outra.'); return; }
-    setData((d) => d.focus || d.break || !d.entries.some((entry) => entry.id === id && entry.status === 'active' && entry.kind === 'task')
-      ? d : { ...d, focus: { entryId: id, startedAt: stamped() } });
-    notify('Foco iniciado. Uma coisa por vez.');
-  };
-  const finishFocus = () => {
+  const startFocus: AppContextValue['startFocus'] = (id, goal, targetMinutes) => {
+    const at = stamped();
     setData((d) => {
-      const event = focusEvent(d.focus);
-      return { ...d, focus: null, activity: event ? [event, ...d.activity] : d.activity };
+      const task = d.entries.find((entry) => entry.id === id);
+      if (d.focus || d.break || !task || !isExecutable(task, d.entries)) return d;
+      return { ...d, focus: { entryId: id, startedAt: at, clockStartedAt: at, goal: goal?.trim(), targetMinutes,
+        estimateMinutes: task.minutes, subjectId: task.subjectId, activityType: task.activityType } };
     });
-    notify('Foco encerrado. O tempo dedicado conta.');
+  };
+  const toggleFocusPause = () => {
+    const now = new Date();
+    setData((d) => d.focus ? { ...d, focus: d.focus.paused
+      ? { ...d.focus, paused: false, clockStartedAt: now.toISOString() }
+      : { ...d.focus, accruedSeconds: focusSeconds(d.focus, now), paused: true } } : d);
+  };
+  const recordInterruption = () => setData((d) => d.focus ? { ...d,
+    focus: { ...d.focus, interruptions: (d.focus.interruptions ?? 0) + 1 } } : d);
+  const saveContinuity: AppContextValue['saveContinuity'] = (id, continuity) => setData((d) => ({
+    ...d, entries: d.entries.map((entry) => entry.id === id ? { ...entry, continuity } : entry),
+  }));
+  const finishFocus: AppContextValue['finishFocus'] = (continuity, effective, effectiveMinutes) => {
+    setData((d) => {
+      if (!d.focus) return d;
+      const event = focusEvent(d.focus, d.cognitive.trackFocus && effective, effectiveMinutes);
+      return { ...d, focus: null, activity: event ? [event, ...d.activity] : d.activity,
+        entries: continuity ? d.entries.map((entry) => entry.id === d.focus?.entryId ? { ...entry, continuity } : entry) : d.entries };
+    });
+    const queued = queuedMessage.current;
+    queuedMessage.current = null;
+    if (!undoAction.current) announce(queued ? 'Sessão encerrada. ' + queued : 'Sessão encerrada.');
   };
   const startBreak = (minutes: number) => {
     const planned = Math.max(1, Math.min(60, minutes));
     setData((d) => {
-      const focus = focusEvent(d.focus);
-      return { ...d, focus: null, break: { startedAt: stamped(), minutes: planned },
-        activity: focus ? [focus, ...d.activity] : d.activity };
+      if (d.focus || d.break) return d;
+      return { ...d, break: { startedAt: stamped(), minutes: planned } };
     });
     notify('Pausa iniciada. Descansar é necessário.');
   };
@@ -304,12 +440,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
   const addDemo = () => { setData((d) => withDemo(d)); notify('Exemplos adicionados e identificados.'); };
   const removeDemo = () => { setData((d) => ({ ...d, entries: d.entries.filter((e) => e.source !== 'demo'), focus: d.focus && d.entries.some((e) => e.id === d.focus?.entryId && e.source === 'demo') ? null : d.focus })); notify('Registros de demonstração removidos.'); };
-  const restore = (next: AppData) => { setData(next); notify('Backup carregado nesta aba.'); };
-  const clearAll = () => { setData(emptyData()); deletedRef.current = null; notify('Espaço reiniciado nesta aba.'); };
+  const restore = (next: AppData) => {
+    capturePending.current.clear();
+    deletedRef.current = null;
+    setData(next);
+    announce('Backup carregado nesta aba.');
+  };
+  const clearAll = () => {
+    capturePending.current.clear();
+    setData(emptyData());
+    deletedRef.current = null;
+    announce('Espaço reiniciado nesta aba.');
+  };
 
   return <Context.Provider value={{ data, ready, loadFailed, saveError, toast, dismissToast, notify, visitSubject, saveSubject, removeSubject, saveNote, updateNote, removeNote, saveFlashcard, removeFlashcard, updateProfile, addEntry, editEntry,
+    capture, editCapture, processInbox, convertInbox, link, updateCognitive, updateDay, applyBlocks, removeBlock, planEntry, clearFocusMetrics, clearReviewMetrics,
     completeEntry, reopenEntry, postponeEntry, archiveEntry, restoreEntry, deleteEntry, undoDelete, divideEntry, addStep, toggleStep,
-    startFocus, finishFocus, startBreak, finishBreak, addReward, deleteReward, redeemReward, addDemo,
+    startFocus, toggleFocusPause, recordInterruption, saveContinuity, finishFocus, startBreak, finishBreak, addReward, deleteReward, redeemReward, addDemo,
     removeDemo, restore, clearAll }}>
     {children}
   </Context.Provider>;

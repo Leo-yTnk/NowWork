@@ -1,20 +1,22 @@
+import { TaskPlanningFields } from '../study/TaskPlanningFields';
 import type { EntryInput } from '../types';
 import { asLocalDate, dateToDeadline, localTime } from '../lib/engine';
 import { useApp } from '../state/AppState';
 import { KINDS } from '../types';
 import { Select } from './Select';
 
-const entryKinds = Object.entries(KINDS) as [EntryInput['kind'], string][];
+const entryKinds = Object.entries(KINDS).filter(([kind]) => kind !== 'capture') as [EntryInput['kind'], string][];
 const durations = [5, 10, 15, 20, 25, 30, 45, 60, 90, 120, 180];
 
 export const freshInput = (): EntryInput => ({
   title: '', note: '', kind: 'task', importance: 2, effort: 2, minutes: 25, dueAt: null,
 });
 
-export function EntryFields({ value, onChange, showKind = true }: {
+export function EntryFields({ value, onChange, showKind = true, entryId }: {
   value: EntryInput;
   onChange: (next: EntryInput) => void;
   showKind?: boolean;
+  entryId?: string;
 }) {
   const { subjects } = useApp().data;
   const availableDurations = durations.includes(value.minutes) ? durations : [...durations, value.minutes].sort((a, b) => a - b);
@@ -62,6 +64,7 @@ export function EntryFields({ value, onChange, showKind = true }: {
           options={[[1, 'Leve'], [2, 'Moderado'], [3, 'Intenso']]} />
       </div>
     </div>
+    {value.kind === 'task' && <TaskPlanningFields value={value} change={onChange} entryId={entryId} />}
     {value.kind === 'worry' && <p className="form-footnote">Preocupações não entram automaticamente na lista de tarefas. Você pode apenas registrá-las.</p>}
   </div>;
 }

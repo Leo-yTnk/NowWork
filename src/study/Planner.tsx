@@ -1,3 +1,4 @@
+import { CapacityPlanner } from './CapacityPlanner';
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { ArrowDownUp, CalendarDays, Check, ChevronLeft, ChevronRight, ListTodo, Plus } from 'lucide-react';
@@ -67,7 +68,7 @@ export function Week({ onAdd, compact = false }: { onAdd: (due?: string | null) 
   const date = asLocalDate(selected.toISOString());
   const days = daysOfWeek(selected);
   const dayEntries = app.data.entries.filter((entry) => entry.status !== 'archived' && (entry.kind === 'event' || entry.kind === 'task'));
-  const selectedEntries = dayEntries.filter((entry) => asLocalDate(entry.dueAt) === date)
+  const selectedEntries = dayEntries.filter((entry) => (asLocalDate(entry.dueAt) === date || entry.plannedOn === date))
     .sort((a, b) => Date.parse(a.dueAt ?? '') - Date.parse(b.dueAt ?? ''));
   const shift = (delta: number) => select(new Date(selected.getFullYear(), selected.getMonth(), selected.getDate() + delta));
   const format = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' });
@@ -91,5 +92,6 @@ export function Week({ onAdd, compact = false }: { onAdd: (due?: string | null) 
     <div className="nw-day-head"><strong>{selected.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
       <button className="nw-icon" aria-label="Adicionar registro neste dia" type="button" onClick={() => onAdd(dateToDeadline(date))}><Plus size={18} /></button></div>
     {selectedEntries.length ? <TaskList entries={selectedEntries} /> : <p className="nw-no-date"><CalendarDays size={16} /> Nenhuma tarefa ou compromisso neste dia.</p>}
+  {!compact && <CapacityPlanner key={date} day={date} />}
   </Surface>;
 }

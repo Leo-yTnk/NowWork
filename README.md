@@ -32,3 +32,5 @@ npm run build
 O GitHub Actions publica o diretório `dist` no GitHub Pages a partir de `main`. O Vite gera caminhos relativos para que o site funcione no diretório publicado pelo GitHub Pages.
 
 Licença MIT.
+
+[Arquitetura cognitiva, migração e referências](docs/arquitetura-cognitiva.md)

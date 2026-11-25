@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, Ellipsis, House, LibraryBig, PanelLeftClose, PanelLeftOpen, Search, Settings2, Timer } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Ellipsis, House, LibraryBig, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Timer } from 'lucide-react';
 import { areas, routeHref, type Area } from '../lib/navigation';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
@@ -93,8 +93,8 @@ export function SectionContent({ activeIndex, children }: { activeIndex: number;
   </motion.div>;
 }
 
-export function WorkspaceNavigation({ current, search, settings, notebook }: {
-  current: Area; search: () => void; settings: () => void; notebook?: NotebookNavigation;
+export function WorkspaceNavigation({ current, search, settings, capture, shortcut, notebook }: {
+  current: Area; search: () => void; settings: () => void; capture: () => void; shortcut: string; notebook?: NotebookNavigation;
 }) {
   const history = useHistoryControls();
   return <header className="workspace-header">
@@ -120,6 +120,7 @@ export function WorkspaceNavigation({ current, search, settings, notebook }: {
         <IconButton className="workspace-history-step" label="Avançar" disabled={!history.forward} onClick={() => window.history.forward()}><ArrowRight size={18} /></IconButton>
       </Toolbar>
       <Toolbar label="Atalhos do NowWork" className="workspace-actions">
+        <IconButton label="Captura rápida" aria-haspopup="dialog" aria-keyshortcuts={'Control+Shift+' + shortcut + ' Meta+Shift+' + shortcut} onClick={capture}><Plus size={21} /></IconButton>
         <IconButton label="Buscar no NowWork" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" onClick={search}><Search size={19} /></IconButton>
         <IconButton label="Configurações" aria-haspopup="dialog" onClick={settings}><Settings2 size={19} /></IconButton>
         {notebook && <IconButton label="Opções da página" aria-haspopup="dialog" onClick={notebook.openOptions}><Ellipsis size={21} /></IconButton>}

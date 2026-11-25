@@ -1,6 +1,6 @@
 /* NowWork | Design tokens: single source of truth */
 :root {
-  --font-body: 'Manrope Variable', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
   --font-heading: var(--font-body);
   font-family: var(--font-body);
   font-weight: 400;

@@ -12,16 +12,22 @@ import { Mente } from './tabs/Mente';
 import { Evolucao } from './tabs/Evolucao';
 import { validateData } from './lib/storage';
 import { springs } from './lib/motion';
-import type { AppData, Subject, Theme } from './types';
+import { uid, type AppData, type Flashcard, type Subject, type Theme } from './types';
+import { CaptureForm, type CaptureDraft } from './study/CaptureForm';
+import { LegacyRewards } from './study/LegacyRewards';
+import { CognitiveSettingsPanel } from './study/CognitiveSettings';
+import { asLocalDate } from './lib/engine';
+import { describeRecord } from './components/RecordLinks';
 import { Dashboard } from './study/Dashboard';
 import { Subjects, SubjectMark } from './study/Subjects';
 import { Tasks, Week } from './study/Planner';
 import { Notebook } from './study/Notebook';
 import { useMobileEditor } from './study/NotebookToolbar';
+import { FlashcardForm } from './study/FlashcardForm';
 import { Review } from './study/Review';
 import { WorkspaceSearch, TaskForm, SubjectForm } from './study/WorkspacePanels';
 
-type Sheet = { kind: 'settings' | 'break' | 'search' } | { kind: 'task'; subjectId?: string; dueAt?: string | null } | { kind: 'subject'; subject?: Subject };
+type Sheet = { kind: 'capture'; draft?: CaptureDraft } | { kind: 'note-card'; card: Flashcard; sourceId: string } | { kind: 'settings' | 'break' | 'search' } | { kind: 'task'; subjectId?: string; dueAt?: string | null } | { kind: 'subject'; subject?: Subject };
 
 function useWorkspaceRoute() {
   const [hash, setHash] = useState(() => window.location.hash);
@@ -81,6 +87,8 @@ function Settings() {
       <label className="toggle-row"><span><strong>Reduzir movimento</strong><small>Desativa molas e movimentos não essenciais; a preferência do dispositivo também é respeitada.</small></span>
         <input type="checkbox" checked={data.profile.reducedMotion} onChange={(e) => app.updateProfile({reducedMotion:e.target.checked})}/></label>
     </div>
+    <CognitiveSettingsPanel />
+    <LegacyRewards />
     <div className="settings-group"><div className="settings-group-title">Seus dados</div>
       <p className="settings-description"><ShieldCheck size={17}/> Suas informações ficam neste navegador. Nenhum cadastro ou servidor é necessário.</p>
       <div className="settings-buttons"><Button icon={<Download size={16}/>} onClick={download}>Exportar backup</Button>
@@ -140,19 +148,28 @@ function AppContent() {
   const newTask = (dueAt?: string | null) => setSheet({ kind: 'task', subjectId: subject?.id, dueAt });
   const openTask = (id: string) => {
     const entry = app.data.entries.find((item) => item.id === id);
-    open({ area: 'planejar', view: entry?.kind === 'idea' || entry?.kind === 'worry' ? 'entrada' : 'tarefas', entryId: id });
+    open({ area: 'planejar', view: entry?.kind === 'idea' || entry?.kind === 'worry' || entry?.kind === 'capture' ? 'entrada' : 'tarefas', entryId: id });
   };
+  const openCapture = (draft?: CaptureDraft) => setSheet({ kind: 'capture', draft: {
+    noteId, subjectId: noteId ? subjectId : undefined, ...draft,
+  } });
   const close = () => setSheet(null);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k' && (sheet?.kind === 'search' || (!sheet && !document.querySelector('.sheet-root')))) {
+      if (!event.repeat && !event.isComposing && (event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey &&
+        (event.key === ' ' ? 'Space' : event.key.toUpperCase()) === app.data.cognitive.shortcut && !sheet && !document.querySelector('.sheet-root')) {
+        event.preventDefault();
+        openCapture();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k' && (sheet?.kind === 'search' || (!sheet && !document.querySelector('.sheet-root')))) {
         event.preventDefault();
         setSheet(sheet ? null : { kind: 'search' });
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [sheet]);
+  }, [sheet, app.data.cognitive.shortcut, noteId, subjectId]);
   if (app.loadFailed) return <main className="loading-shell">
     <p role="alert">O NowWork não conseguiu ler os dados locais. Os arquivos locais foram preservados.</p>
     <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
@@ -160,14 +177,14 @@ function AppContent() {
   if (!app.ready) return <div className="loading-shell"><div className="nw-logo"><img className="nw-logo-icon" src={nowWorkLogo} alt="" width={34} height={34} />NowWork</div><p>Preparando seu espaço…</p></div>;
   const createSubject = () => setSheet({ kind: 'subject' });
   const sheetTitles = { settings: 'Configurações', break: 'Uma pausa para respirar', search: 'Buscar no NowWork',
-    task: 'Novo registro', subject: sheet?.kind === 'subject' && sheet.subject ? 'Editar matéria' : 'Nova matéria' };
+    capture: 'Captura rápida', 'note-card': 'Flashcard da página', task: 'Novo registro', subject: sheet?.kind === 'subject' && sheet.subject ? 'Editar matéria' : 'Nova matéria' };
   const routeKey = route.area === 'materias' ? noteId ? 'caderno:' + subjectId : route.subjectId || route.area : route.area;
   return <div className="nw-shell" data-notebook-page={noteId ? true : undefined}>
     <a className="workspace-skip" href="#main-content" onClick={(event) => {
       event.preventDefault();
       document.getElementById('main-content')?.focus();
     }}>Ir para o conteúdo</a>
-    <WorkspaceNavigation current={route.area} search={() => setSheet({ kind: 'search' })} settings={() => setSheet({ kind: 'settings' })}
+    <WorkspaceNavigation current={route.area} search={() => setSheet({ kind: 'search' })} settings={() => setSheet({ kind: 'settings' })} capture={() => openCapture()} shortcut={app.data.cognitive.shortcut}
       notebook={noteId && subjectId ? {
         sidebarId, toggleId: sidebarToggleId, pagesOpen,
         togglePages: () => pagesOpen ? closePages() : setPagesOpen(true),
@@ -181,11 +198,13 @@ function AppContent() {
       </div>}
       <motion.div key={routeKey} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? { duration: 0 } : springs.panel}>
-        {route.area === 'hoje' && <Dashboard subject={subjectPage} newSubject={createSubject}
-          focus={() => open(areas.estudar)} add={newTask} openTask={openTask} />}
+        {route.area === 'hoje' && <Dashboard subject={subjectPage} focus={() => open(areas.estudar)} capture={() => openCapture()} openTask={openTask} />}
         {route.area === 'materias' && (!subject
           ? <Subjects open={subjectPage} create={createSubject} />
           : noteId ? <Notebook key={subject.id} subjectId={subject.id} noteId={noteId} open={(id) => subjectPage(subject.id, 'caderno', id)}
+            captureQuestion={(text) => openCapture({ content: text, classification: 'question' })}
+            createCard={(text) => setSheet({ kind: 'note-card', sourceId: noteId,
+              card: { id: uid(), subjectId: subject.id, front: '', back: text.slice(0, 5000), interval: 0, due: asLocalDate(new Date().toISOString()) } })}
             pageControls={{ mobile, pagesOpen, sidebarId, closePages, optionsOpen, closeOptions: () => setOptionsOpen(false) }} />
           : <Stack className="workspace-page">
               <div className="workspace-page-heading">
@@ -200,7 +219,7 @@ function AppContent() {
               <SectionContent activeIndex={subjectViews.findIndex(({ id }) => id === route.view)}>
                 {route.view === 'tarefas' && <Tasks subjectId={subject.id} onAdd={() => newTask()} />}
                 {route.view === 'caderno' && <Notebook subjectId={subject.id} open={(id) => subjectPage(subject.id, 'caderno', id)} />}
-                {route.view === 'revisao' && <Review subjectId={subject.id} />}
+                {route.view === 'revisao' && <Review key={route.noteId || subject.id} subjectId={subject.id} selectedId={route.noteId} />}
               </SectionContent>
             </Stack>)}
         {route.area === 'planejar' && <Stack className="workspace-page">
@@ -212,7 +231,7 @@ function AppContent() {
           <SectionContent activeIndex={planningViews.findIndex(({ id }) => id === route.view)}>
             {route.view === 'tarefas' && <Tasks key={route.entryId || 'all'} onlyId={route.entryId} onAdd={() => newTask()} />}
             {route.view === 'agenda' && <Week onAdd={newTask} />}
-            {route.view === 'entrada' && <Mente key={route.entryId || 'all'} selectedId={route.entryId} />}
+            {route.view === 'entrada' && <Mente key={route.entryId || 'all'} selectedId={route.entryId} openCapture={() => openCapture()} />}
           </SectionContent>
         </Stack>}
         {route.area === 'estudar' && <Stack className="workspace-page">
@@ -222,21 +241,31 @@ function AppContent() {
               ({ label, active: route.view === id, href: routeHref({ area: 'estudar', view: id }) }))} />
           </div>
           <SectionContent activeIndex={studyViews.findIndex(({ id }) => id === route.view)}>
-            {route.view === 'foco' ? <Agora onMind={() => open({ area: 'planejar', view: 'entrada' })} onBreak={() => setSheet({ kind: 'break' })} /> : <Evolucao />}
+            {route.view === 'foco' ? <Agora capture={() => openCapture()} exit={() => open(areas.hoje)} onBreak={() => setSheet({ kind: 'break' })} /> : <Evolucao />}
           </SectionContent>
         </Stack>}
       </motion.div>
     </main>
 
-    <AnimatePresence>{sheet && <ElasticSheet key={sheet.kind} title={sheetTitles[sheet.kind]} onClose={close}>
+    <AnimatePresence>{sheet && <ElasticSheet key={sheet.kind} title={sheetTitles[sheet.kind]} immediateFocus={sheet.kind === 'capture'} onClose={close}>
       {(dismiss: () => void) => <>
         {sheet.kind === 'settings' && <Settings />}
+        {sheet.kind === 'capture' && <CaptureForm draft={sheet.draft} close={dismiss} />}
+        {sheet.kind === 'note-card' && <FlashcardForm card={sheet.card} close={dismiss} save={(card) => {
+          app.saveFlashcard(card);
+          app.link({ type: 'note', id: sheet.sourceId }, { type: 'card', id: card.id });
+          dismiss();
+        }} />}
         {sheet.kind === 'task' && <TaskForm subjectId={sheet.subjectId} dueAt={sheet.dueAt} close={dismiss} />}
         {sheet.kind === 'subject' && <SubjectForm subject={sheet.subject} close={dismiss}
           save={(value) => { app.saveSubject(value); subjectPage(value.id); dismiss(); }}
           remove={(id) => { app.removeSubject(id); open(areas.materias); dismiss(); }} />}
         {sheet.kind === 'search' && <WorkspaceSearch subject={(id) => { subjectPage(id); dismiss(); }}
-          note={(sid, id) => { subjectPage(sid, 'caderno', id); dismiss(); }} entry={(id) => { openTask(id); dismiss(); }} />}
+          note={(sid, id) => { subjectPage(sid, 'caderno', id); dismiss(); }} entry={(id) => { openTask(id); dismiss(); }} card={(id) => {
+            const target = describeRecord(app.data, { type: 'card', id });
+            if (target) window.location.hash = target.href;
+            dismiss();
+          }} />}
         {sheet.kind === 'break' && <div className="break-sheet-content">
           <div className="break-illustration"><Coffee size={32} strokeWidth={1.5} /></div>
           <h3>Escolha um intervalo</h3><p>Quando terminar, a pausa será registrada em Progresso.</p>

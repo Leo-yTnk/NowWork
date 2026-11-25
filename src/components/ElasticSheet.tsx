@@ -1,4 +1,4 @@
-import { useEffect, useRef, type PointerEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react';
 import { GripHorizontal, X } from 'lucide-react';
@@ -10,7 +10,7 @@ const overshoot = 72;
 
 interface Drag { id: number; y: number; height: number; lastY: number; lastTime: number; velocity: number; moved: boolean }
 
-export function ElasticSheet({ title, children, onClose }: { title: string; children: ReactNode | ((dismiss: () => void) => ReactNode); onClose: () => void }) {
+export function ElasticSheet({ title, children, onClose, immediateFocus = false }: { immediateFocus?: boolean; title: string; children: ReactNode | ((dismiss: () => void) => ReactNode); onClose: () => void }) {
   const { data } = useApp();
   const systemReduced = useReducedMotion();
   const reduce = !!systemReduced || data.profile.reducedMotion;
@@ -43,7 +43,7 @@ export function ElasticSheet({ title, children, onClose }: { title: string; chil
     animate(backdrop, 0, { duration: 0.18 });
     animate(offset, height.get(), { duration: 0.21, ease: 'easeIn', onComplete: onClose });
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -57,8 +57,8 @@ export function ElasticSheet({ title, children, onClose }: { title: string; chil
       (target || panel.current)?.focus({ preventScroll: true });
     };
     panel.current?.focus({ preventScroll: true });
-    if (reduce) moveFocus();
-    else {
+    if (reduce || immediateFocus) moveFocus();
+    if (!reduce) {
       animate(backdrop, 1, { duration: 0.18 });
       animate(offset, 0, { duration: 0.3, ease: [0.22, 1, 0.36, 1], onComplete: () => {
         if (document.activeElement === panel.current) moveFocus();

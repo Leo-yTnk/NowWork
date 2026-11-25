@@ -1,3 +1,6 @@
+import { RecordLinks } from './RecordLinks';
+import { intentionPrompt } from '../lib/decision';
+import { isExecutable } from '../lib/planning';
 import { subjectTone } from '../lib/subjectAppearance';
 import { useEffect, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -10,6 +13,11 @@ import { useApp } from '../state/AppState';
 import { Button, KindPill } from './ui';
 import { EntryFields } from './EntryFields';
 
+function entryInput(entry: Entry): EntryInput {
+  const { title, kind, note, importance, effort, minutes, dueAt, eventTime, subjectId, dependencies, plannedOn, optional, activityType, intention } = entry;
+  return { title, kind, note, importance, effort, minutes, dueAt, eventTime, subjectId, dependencies, plannedOn, optional, activityType, intention };
+}
+
 export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; initiallyExpanded?: boolean }) {
   const app = useApp();
   const reduceSystem = useReducedMotion();
@@ -17,14 +25,10 @@ export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; 
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const [editing, setEditing] = useState(false);
   const [stepText, setStepText] = useState('');
-  const [draft, setDraft] = useState<EntryInput>({
-    title: entry.title, kind: entry.kind, note: entry.note, importance: entry.importance,
-    effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, eventTime: entry.eventTime, subjectId: entry.subjectId,
-  });
-  useEffect(() => {
-    if (!editing) setDraft({ title: entry.title, kind: entry.kind, note: entry.note,
-      importance: entry.importance, effort: entry.effort, minutes: entry.minutes, dueAt: entry.dueAt, eventTime: entry.eventTime, subjectId: entry.subjectId });
-  }, [entry, editing]);
+  const [draft, setDraft] = useState<EntryInput>(() => entryInput(entry));
+  useEffect(() => { if (!editing) setDraft(entryInput(entry)); }, [entry, editing]);
+  const prompt = intentionPrompt(entry, app.data, new Date());
+  const executable = isExecutable(entry, app.data.entries);
   const overdue = entry.status === 'active' && (dueDays(entry) ?? Infinity) < 0;
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,12 +65,16 @@ export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; 
         exit={reduce ? {opacity:0, transition:{duration:0}} : {height:0, opacity:0}}
         transition={reduce ? {duration:0} : {duration:0.22}} className="entry-detail-clip">
         <div className="entry-detail">
-          {editing ? <form onSubmit={save}><EntryFields value={draft} onChange={setDraft} />
+          {editing ? <form onSubmit={save}><EntryFields value={draft} onChange={setDraft} entryId={entry.id} />
             <div className="button-row"><Button type="submit" variant="primary" size="sm" icon={<Check size={15}/>}>Salvar</Button>
             <Button size="sm" onClick={() => setEditing(false)}>Cancelar</Button></div>
           </form> : <>
             {entry.note && <p className="entry-note">{entry.note}</p>}
             {entry.kind === 'worry' && <div className="reflection">Nem tudo precisa virar uma ação. Se ajudar, pense no que está ao seu alcance — ou deixe esta preocupação guardada por enquanto.</div>}
+            {entry.plannedOn && <p className="nw-muted">Planejada para {new Date(entry.plannedOn + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+            {prompt && <p>{prompt}</p>}
+            {entry.kind === 'task' && entry.status === 'active' && !executable && <p className="nw-muted">Aguarda a conclusão de pré-requisitos.</p>}
+            <RecordLinks record={{ type: 'entry', id: entry.id }} />
             {entry.kind === 'task' && entry.status === 'active' && <div className="steps-area">
               <div className="steps-title">Pequenos passos</div>
               {entry.steps.length === 0
@@ -83,8 +91,8 @@ export function EntryCard({ entry, initiallyExpanded = false }: { entry: Entry; 
             <div className="entry-actions">
               {entry.status === 'active' && <Button size="sm" variant="primary" icon={<Check size={15}/>} onClick={() => app.completeEntry(entry.id)}>{entry.kind === 'worry' ? 'Resolvida' : 'Concluir'}</Button>}
               {entry.status === 'active' && entry.kind === 'task' && <Button size="sm" icon={<RotateCcw size={14}/>} onClick={() => app.postponeEntry(entry.id)}>Adiar 1 dia</Button>}
-              {entry.status === 'active' && entry.kind === 'task' && !app.data.focus && !app.data.break &&
-                <Button size="sm" icon={<Play size={14}/>} onClick={() => app.startFocus(entry.id)}>Iniciar foco</Button>}
+              {entry.status === 'active' && entry.kind === 'task' && executable && !app.data.focus && !app.data.break &&
+                <Button size="sm" icon={<Play size={14}/>} onClick={() => { window.location.hash = "#/estudar/foco"; app.startFocus(entry.id); }}>Iniciar foco</Button>}
               {entry.status === 'done' && <Button size="sm" icon={<RotateCcw size={14}/>} onClick={() => app.reopenEntry(entry.id)}>Reabrir</Button>}
               <Button size="sm" variant="ghost" icon={<Pencil size={15}/>} onClick={() => setEditing(true)}>Editar</Button>
               {entry.status !== 'archived' ? <Button size="sm" variant="ghost" icon={<Archive size={15}/>} onClick={() => app.archiveEntry(entry.id)}>Arquivar</Button> : <Button size="sm" variant="ghost" icon={<RotateCcw size={15}/>} onClick={() => app.restoreEntry(entry.id)}>Restaurar</Button>}

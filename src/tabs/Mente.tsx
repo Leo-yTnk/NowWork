@@ -1,95 +1,138 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Archive, Brain, ChevronDown, Inbox, Plus, Search, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Inbox, Plus } from 'lucide-react';
 import { useApp } from '../state/AppState';
-import { dueDays } from '../lib/engine';
-import { KINDS, type EntryKind } from '../types';
-import { Button, EmptyState, SectionHeader, Surface } from '../components/ui';
-import { EntryFields, freshInput } from '../components/EntryFields';
-import { Select } from '../components/Select';
+import { asLocalDate, dateToDeadline } from '../lib/engine';
+import { captureLabels, normalizeText } from '../lib/capture';
+import { dayOffset } from '../lib/localDates';
+import { Button, EmptyState, Surface } from '../components/ui';
 import { EntryCard } from '../components/EntryCard';
+import { RecordLinks, RecordPicker } from '../components/RecordLinks';
+import { CAPTURE_KINDS, type CaptureKind, type Entry } from '../types';
 
-type Filter = 'active' | 'all' | 'task' | 'event' | 'worry' | 'idea' | 'done' | 'archived';
+type ConversionType = 'task' | 'event' | 'note' | 'card';
+const conversionLabels: Record<ConversionType, string> = { task: 'Tarefa', event: 'Compromisso', note: 'Página de caderno', card: 'Flashcard' };
 
-export function Mente({ selectedId }: { selectedId?: string }) {
+function InboxActions({ entries, onDone }: { entries: Entry[]; onDone?: () => void }) {
   const app = useApp();
-  const { data } = app;
-  const [draft, setDraft] = useState(freshInput);
-  const [details, setDetails] = useState(false);
-  const [filter, setFilter] = useState<Filter>(selectedId ? 'all' : 'active');
-  const [search, setSearch] = useState('');
-  const [limit, setLimit] = useState(12);
-  const reduceSystem = useReducedMotion();
-  const reduce = !!reduceSystem || data.profile.reducedMotion;
-
-  const create = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!draft.title.trim()) return;
-    app.addEntry({ ...draft, title: draft.title.trim() });
-    setDraft(freshInput());
-    setDetails(false);
-    setFilter('active');
-    setSearch('');
-    setLimit(12);
+  const ids = entries.map(({ id }) => id);
+  const first = entries[0];
+  const [conversion, setConversion] = useState<ConversionType | ''>('');
+  const [subjectId, setSubjectId] = useState(first.subjectId ?? '');
+  const [day, setDay] = useState(first.capture?.suggestedDay ?? '');
+  const [time, setTime] = useState('');
+  const [title, setTitle] = useState('');
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [content, setContent] = useState(first.capture?.content ?? [first.title, first.note].filter(Boolean).join('\n'));
+  const [classification, setClassification] = useState<CaptureKind | ''>(first.capture?.classification ?? '');
+  const needsSubject = conversion === 'note' || conversion === 'card';
+  const archived = entries.every((entry) => entry.status === 'archived');
+  const action = (type: 'archive' | 'delete' | 'defer' | 'restore' | 'subject', value?: string) => {
+    app.processInbox(ids, type, value);
+    onDone?.();
   };
-  const entries = useMemo(() => {
-    return data.entries
-      .filter((item) => filter === 'all' ? true : filter === 'active' ? item.status === 'active'
-        : filter === 'done' || filter === 'archived' ? item.status === filter : item.kind === filter && item.status !== 'archived')
-      .filter((item) => (item.title + ' ' + item.note).toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')))
-      .sort((a, b) => {
-        if (a.id === selectedId || b.id === selectedId) return a.id === selectedId ? -1 : 1;
-        const status = ({active:0,done:1,archived:2} as const);
-        return status[a.status] - status[b.status] ||
-          (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity) ||
-          b.createdAt.localeCompare(a.createdAt);
-      });
-  }, [data.entries, filter, search, selectedId]);
-  const expiring = data.entries.filter((item) => item.status === 'active' && item.dueAt &&
-    (dueDays(item) ?? Infinity) <= 2).length;
-  const kindIcons: {kind: EntryKind; label: string}[] = [
-    {kind:'task',label:'Tarefa'}, {kind:'event',label:'Compromisso'},
-    {kind:'worry',label:'Preocupação'}, {kind:'idea',label:'Ideia'},
-  ];
-  return <div className="screen mind-screen">
-    <Surface className="capture-card">
-      <form onSubmit={create}>
-        <div className="capture-label"><Sparkles size={16}/> Captura rápida</div>
-        <div className="capture-main">
-          <input value={draft.title} onChange={(e) => setDraft({...draft,title:e.target.value})}
-            placeholder="O que está ocupando sua mente?" required maxLength={200} aria-label="Novo registro"/>
-          <Button variant="primary" size="lg" type="submit" icon={<Plus size={18}/>}>Guardar</Button>
-        </div>
-        <div className="kind-choices" role="group" aria-label="Classificação do registro">
-          {kindIcons.map(({kind,label}) => <button type="button" key={kind} className={'kind-choice ' + (draft.kind === kind ? 'chosen' : '')}
-            aria-pressed={draft.kind === kind} onClick={() => setDraft({...draft,kind})}>{label}</button>)}
-        </div>
-        <button className="capture-more" type="button" aria-expanded={details} onClick={() => setDetails(!details)}>
-          {details ? 'Ocultar detalhes' : 'Adicionar detalhes opcionais'}
-          <motion.span animate={{rotate:details ? 180 : 0}} transition={reduce ? {duration:0} : {duration:.18}}><ChevronDown size={16}/></motion.span>
-        </button>
-        <AnimatePresence initial={false}>
-          {details && <motion.div initial={reduce ? false : {height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={reduce ? {opacity:0,transition:{duration:0}} : {height:0,opacity:0}} transition={{duration:reduce ? 0 : .23}} className="detail-clip">
-            <div className="capture-details"><EntryFields value={draft} onChange={setDraft} showKind={false}/></div>
-          </motion.div>}
-        </AnimatePresence>
-        {draft.kind === 'worry' && !details && <p className="worry-hint">Pode ser só um desabafo. Não vamos transformá-lo em tarefa.</p>}
+  return <div className="nw-stack">
+    <div className="nw-toolbar">
+      {!archived && <><Button size="sm" onClick={() => action('archive')}>Arquivar</Button>
+        <Button size="sm" onClick={() => action('defer', dayOffset(asLocalDate(new Date().toISOString()), 1))}>Classificar amanhã</Button></>}
+      {archived && entries.some((entry) => !entry.capture?.convertedTo) && <Button size="sm" onClick={() => action('restore')}>Tratar novamente</Button>}
+      <Button size="sm" variant="danger" onClick={() => action('delete')}>Excluir</Button>
+    </div>
+    {!archived && <details className="cognitive-details">
+      <summary>Classificar ou converter</summary>
+      <div className="cognitive-form-grid">
+        <label className="field-label">Matéria
+          <select className="ds-input" value={subjectId} onChange={(event) => setSubjectId(event.target.value)}>
+            <option value="">Sem matéria</option>{app.data.subjects.map(({ id, title }) => <option key={id} value={id}>{title}</option>)}
+          </select>
+        </label>
+        <label className="field-label">Converter em
+          <select className="ds-input" value={conversion} onChange={(event) => setConversion(event.target.value as ConversionType | '')}>
+            <option value="">Escolha um formato</option>{Object.entries(conversionLabels)
+              .map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
+          </select>
+        </label>
+      </div>
+      {conversion ? <form className="nw-stack" onSubmit={(event) => {
+        event.preventDefault();
+        app.convertInbox(ids, { type: conversion, title, answers, subjectId,
+          dueAt: conversion === 'task' || conversion === 'event' ? dateToDeadline(day, time) : undefined, eventTime: !!(day && time) });
+        onDone?.();
+      }}>
+        {entries.length === 1 && <label className="field-label">{conversion === 'card' ? 'Pergunta' : 'Título personalizado (opcional)'}
+          <input className="ds-input" value={title} placeholder={first.title} maxLength={200} onChange={(event) => setTitle(event.target.value)} />
+        </label>}
+        {(conversion === 'event' || conversion === 'task') && <div className="cognitive-form-grid">
+          <label className="field-label">{conversion === 'event' ? 'Data' : 'Prazo'}<input className="ds-input" type="date" value={day} onChange={(event) => setDay(event.target.value)} /></label>
+          {conversion === 'event' && <label className="field-label">Horário<input className="ds-input" type="time" value={time} onChange={(event) => setTime(event.target.value)} /></label>}
+        </div>}
+        {conversion === 'card' && entries.map((entry) => <label key={entry.id} className="field-label">
+          {entries.length === 1 ? 'Resposta' : 'Resposta para ' + entry.title}
+          <textarea className="ds-input" required maxLength={5000} value={answers[entry.id] ?? ''}
+            onChange={(event) => setAnswers({ ...answers, [entry.id]: event.target.value })} />
+        </label>)}
+        <Button size="sm" type="submit" variant="primary" disabled={needsSubject && !subjectId}>Converter</Button>
+      </form> : <Button size="sm" onClick={() => action('subject', subjectId)}>Salvar matéria</Button>}
+      {entries.length > 1 && <RecordPicker label="Vincular seleção a um registro" omit={ids.map((id) => ({ type: 'entry', id }))}
+        onPick={(target) => { ids.forEach((id) => app.link({ type: 'entry', id }, target)); onDone?.(); }} />}
+    </details>}
+    {!archived && entries.length === 1 && <details className="cognitive-details">
+      <summary>Editar captura</summary>
+      <form className="nw-stack" onSubmit={(event) => {
+        event.preventDefault();
+        app.editCapture(first.id, content, classification || undefined);
+      }}>
+        <label className="field-label">Conteúdo<textarea className="ds-input" required rows={3} value={content} onChange={(event) => setContent(event.target.value)} /></label>
+        <label className="field-label">Classificação<select className="ds-input" value={classification} onChange={(event) => setClassification(event.target.value as CaptureKind | '')}>
+          <option value="">Sem classificação</option>{CAPTURE_KINDS.map((kind) => <option key={kind} value={kind}>{captureLabels[kind]}</option>)}
+        </select></label>
+        <Button type="submit" size="sm" disabled={!content.trim()}>Salvar captura</Button>
       </form>
-    </Surface>
+    </details>}
+  </div>;
+}
 
-    <div className="list-tools">
-      <div><SectionHeader label="Seus registros" />{expiring > 0 && <p className="list-alert">{expiring} registro{expiring > 1 ? 's' : ''} com prazo próximo ou vencido</p>}</div>
-      <div className="list-controls"><label className="search-control"><Search size={15}/><input aria-label="Pesquisar registros" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..."/></label>
-      <Select label="Filtrar registros" value={filter} onChange={(value) => { setFilter(value); setLimit(12); }}
-        options={[[ 'active', 'Em aberto'], ['all', 'Todos'], ...Object.entries(KINDS) as [EntryKind, string][],
-          ['done', 'Concluídos'], ['archived', 'Arquivados']]} /></div>
+export function Mente({ selectedId, openCapture }: { selectedId?: string; openCapture: () => void }) {
+  const { data } = useApp();
+  const [filter, setFilter] = useState(selectedId ? 'all' : 'pending');
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const today = asLocalDate(new Date().toISOString());
+  const entries = data.entries.filter((entry) => {
+    if (entry.id === selectedId && filter === 'all') return true;
+    if (!['capture', 'idea', 'worry'].includes(entry.kind)) return false;
+    const deferred = entry.capture?.deferredUntil && entry.capture.deferredUntil > today;
+    return filter === 'all' || (filter === 'archived' ? entry.status === 'archived' :
+      entry.status === 'active' && (filter === 'deferred' ? deferred : !deferred));
+  }).filter((entry) => normalizeText(entry.title + ' ' + (entry.capture?.content ?? entry.note)).includes(normalizeText(query.trim())))
+    .sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId) || b.createdAt.localeCompare(a.createdAt));
+  const batch = entries.filter((entry) => selected.includes(entry.id));
+  return <div className="nw-stack">
+    <div className="nw-section-heading nw-wrap">
+      <label className="field-label">Buscar na caixa de entrada<input className="ds-input" type="search" value={query}
+        onChange={(event) => { setQuery(event.target.value); setSelected([]); }} /></label>
+      <label className="field-label">Mostrar<select className="ds-input" value={filter} onChange={(event) => { setFilter(event.target.value); setSelected([]); }}>
+        <option value="pending">A processar</option><option value="deferred">Adiados</option><option value="archived">Arquivo</option><option value="all">Todos</option>
+      </select></label>
+      <Button variant="primary" icon={<Plus size={16} />} onClick={openCapture}>Capturar</Button>
     </div>
-    <div className="record-list">
-      {entries.length ? entries.slice(0,limit).map((entry) => <EntryCard key={entry.id} entry={entry} initiallyExpanded={entry.id === selectedId}/>) :
-        <Surface><EmptyState icon={filter === 'archived' ? <Archive size={23}/> : data.entries.length ? <Search size={23}/> : <Brain size={23}/>}
-          title={data.entries.length ? 'Nenhum registro neste filtro.' : 'Uma mente mais leve começa aqui.'}
-          description={data.entries.length ? 'Tente outro filtro ou uma busca diferente.' : 'Anote uma tarefa, um pensamento ou uma ideia no campo acima. Nenhuma organização complexa é necessária.'}/></Surface>}
-      {entries.length > limit && <Button variant="secondary" className="more-records" icon={<Inbox size={16}/>} onClick={() => setLimit(limit+12)}>Mostrar mais {Math.min(entries.length-limit,12)} registros</Button>}
-    </div>
+    {batch.length > 0 && <Surface className="nw-padding nw-stack">
+      <strong>{batch.length} selecionados</strong><InboxActions key={selected.join(',')} entries={batch} onDone={() => setSelected([])} />
+    </Surface>}
+    {entries.length ? entries.map((entry) => ['capture', 'idea', 'worry'].includes(entry.kind)
+      ? <Surface key={entry.id} className="nw-padding nw-stack">
+        <div className="cognitive-inbox-heading">
+          <label className="cognitive-check"><input type="checkbox" checked={selected.includes(entry.id)} aria-label={'Selecionar ' + entry.title}
+            onChange={(event) => setSelected(event.target.checked ? [...selected, entry.id] : selected.filter((id) => id !== entry.id))} /></label>
+          <details className="cognitive-details" open={entry.id === selectedId || undefined}>
+            <summary>{entry.title}</summary>
+            <p className="cognitive-content">{entry.capture?.content ?? entry.note}</p>
+            <p className="nw-muted">{[entry.capture?.classification && captureLabels[entry.capture.classification],
+              data.subjects.find(({ id }) => id === entry.subjectId)?.title, entry.capture?.convertedTo ? 'Convertido' : undefined].filter(Boolean).join(' · ')}</p>
+            <InboxActions entries={[entry]} />
+            <RecordLinks record={{ type: 'entry', id: entry.id }} />
+          </details>
+        </div>
+      </Surface> : <EntryCard key={entry.id} entry={entry} initiallyExpanded={entry.id === selectedId} />)
+      : <Surface><EmptyState icon={<Inbox size={23} />} title="Nenhum registro nesta lista" description="Capture uma ideia ou um lembrete para processar quando quiser." /></Surface>}
   </div>;
 }
