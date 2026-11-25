@@ -1,0 +1,43 @@
+name: Verify Prism 2.1 (no deploy)
+on:
+  push:
+    branches: [codex/prism-verification]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Build and test the baseline
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/nowwork-before" e73da16b789ccbfc6dad7d8063e58519eb702db5
+          ln -s "$PWD/node_modules" "$RUNNER_TEMP/nowwork-before/node_modules"
+          cd "$RUNNER_TEMP/nowwork-before"
+          npm test
+          npm run build
+      - name: Build and test Prism
+        run: |
+          git diff --check e73da16b789ccbfc6dad7d8063e58519eb702db5
+          npm test
+          npm run build
+      - name: Install isolated test browsers
+        run: |
+          npm install --prefix "$RUNNER_TEMP/prism-runner" --no-save --no-audit --no-fund playwright pngjs
+          "$RUNNER_TEMP/prism-runner/node_modules/.bin/playwright" install --with-deps chromium firefox webkit
+      - name: Compare and exercise the applications
+        run: |
+          NODE_PATH="$RUNNER_TEMP/prism-runner/node_modules" node tests/prism-browser.cjs "$RUNNER_TEMP/nowwork-before/dist" dist "$RUNNER_TEMP/prism-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: NowWork-Prism-2.1-evidencias
+          path: ${{ runner.temp }}/prism-evidence
+          if-no-files-found: ignore
