@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, LibraryBig, Search } from 'lucide-react';
-import { Button, CreateButton, EmptyState, PageHeading, Stack, Surface } from '../components/ui';
+import { Button, Card, CreateButton, EmptyState, PageHeading, Stack, Surface } from '../components/ui';
 import { useApp } from '../state/AppState';
 import { getSubjectIcon, subjectTone } from '../lib/subjectAppearance';
 import type { Subject } from '../types';
@@ -28,14 +28,14 @@ export function SubjectMark({ subject }: { subject: Subject }) {
 
 export function SubjectCard({ subject, open }: { subject: Subject; open: () => void }) {
   const counts = useSubjectCounts(subject.id);
-  return <Surface layout className="subject-card">
+  return <Card layout className="subject-card">
     <Button className="ds-card-button" variant="ghost" onClick={open}>
       <SubjectMark subject={subject} />
       <strong>{subject.title}</strong>
       <span className="nw-muted">{countLabel(counts.tasks, 'pendência', 'pendências')} · {countLabel(counts.notes, 'página', 'páginas')}</span>
       <ArrowRight className="ds-card-arrow" size={16} aria-hidden="true" />
     </Button>
-  </Surface>;
+  </Card>;
 }
 
 function useSubjectFilter() {
