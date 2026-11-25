@@ -211,6 +211,7 @@
   .nw-shell:not([data-notebook-page]) .workspace-history { display: none; }
   .nw-shell:not([data-notebook-page]) .workspace-primary {
     position: fixed;
+    justify-self: stretch;
     z-index: var(--layer-nav);
     inset-inline: max(var(--bottom-nav-gap), env(safe-area-inset-left, 0px)) max(var(--bottom-nav-gap), env(safe-area-inset-right, 0px));
     inset-block-end: max(var(--bottom-nav-gap), env(safe-area-inset-bottom, 0px));

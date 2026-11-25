@@ -87,6 +87,12 @@ async function open(page, url, hash = '') {
   await page.goto(url + hash);
   await page.locator('.workspace-primary').waitFor();
   await page.locator('#main-content').waitFor();
+  const [, area, subjectOrView, subjectView, note] = hash.split('/');
+  const primary = area === 'planejar' ? '#/planejar/tarefas' : area === 'estudar' ? '#/estudar/foco' : '#/' + (area || 'hoje');
+  await page.locator('.workspace-primary [aria-current="page"][href="' + primary + '"]').waitFor();
+  if (!note && (subjectView || subjectOrView && area !== 'materias')) {
+    await page.locator('.workspace-sections [aria-current="page"][href="' + hash + '"]').waitFor();
+  }
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }
 
@@ -130,7 +136,10 @@ async function toolbarCase(browser, url, test, phase) {
   const name = [width, theme, mode].join('-');
   try {
     await open(page, url, noteRoute);
-    await page.locator('.tiptap').waitFor();
+    const editor = page.locator('.tiptap');
+    await editor.waitFor();
+    await editor.click();
+    await page.keyboard.press('Control+a');
     const bar = page.locator('.note-command-bar');
     const baseline = await toolbarStyles(bar);
     const screenshot = await bar.screenshot({ path: join(output, phase + '-toolbar-' + name + '.png') });
@@ -145,6 +154,7 @@ async function toolbarCase(browser, url, test, phase) {
       const portal = page.locator('.ds-select-content[data-state="open"]');
       await portal.waitFor();
       menu = await toolbarStyles(portal);
+      if (phase === 'depois') assert.equal(await portal.getAttribute('data-editor-toolbar-portal'), 'true');
       await portal.screenshot({ path: join(output, phase + '-menu-' + name + '.png') });
       await page.keyboard.press('Escape');
       await portal.waitFor({ state: 'hidden' });
@@ -191,8 +201,8 @@ async function visualReview(browser, left, right) {
     try {
       const [a, b] = await Promise.all([toolbarCase(browser, left, test, 'antes'), toolbarCase(browser, right, test, 'depois')]);
       await writeFile(join(output, 'comparativo-toolbar-' + key + '.png'), combine(a.screenshot, b.screenshot));
-      assert.deepEqual(b.baseline, a.baseline, 'Estilos computados da barra');
-      assert.deepEqual(b.menu, a.menu, 'Estilos computados do menu em portal');
+      compareStyles(b.baseline, a.baseline, 'Barra');
+      compareStyles(b.menu, a.menu, 'Portal');
       summaries.push({ name: 'Toolbar ' + key, pass: true, menu: Boolean(b.menu) });
     } catch (error) {
       failures.push(error);
@@ -200,6 +210,18 @@ async function visualReview(browser, left, right) {
     }
   }
   return failures;
+}
+
+function compareStyles(afterStyles, beforeStyles, label) {
+  const differences = [];
+  assert.equal(afterStyles?.length, beforeStyles?.length, label + ' quantidade de controles');
+  afterStyles?.forEach((row, index) => {
+    const before = beforeStyles[index];
+    if (JSON.stringify(row) !== JSON.stringify(before)) {
+      differences.push(row[0] + ': ' + before.flatMap((value, key) => value === row[key] ? [] : [String(value) + ' → ' + row[key]]).join(', '));
+    }
+  });
+  assert.deepEqual(differences, [], label);
 }
 
 async function checkViewport(page, url, widths, expectBottom = true) {
@@ -272,12 +294,12 @@ async function flows(browser, url, widths, engine) {
     assert.equal(await page.locator('.workspace-primary').evaluate((el) => getComputedStyle(el).position), 'relative');
     await page.getByRole('button', { name: 'Expandir páginas da matéria' }).click();
     await page.locator('.document-layout[data-pages-open="true"]').waitFor();
+    await page.waitForFunction(() => document.activeElement?.matches('.document-sidebar [aria-current="page"]'));
     await page.keyboard.press('Escape');
     await page.locator('.document-layout[data-pages-open="false"]').waitFor();
 
     if (engine === 'chromium') {
-      await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
-      await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+      await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller), { timeout: 10000 });
       await context.setOffline(true);
       await page.reload();
       await editor.waitFor();
@@ -313,7 +335,8 @@ async function main() {
         try {
           if (engine === 'chromium') {
             failures.push(...await reportRun('Capturas e paridade da toolbar', async () => {
-              failures.push(...await visualReview(browser, left.url, right.url));
+              const issues = await visualReview(browser, left.url, right.url);
+              assert.equal(issues.length, 0, issues.length + ' casos divergiram');
             }));
           }
           await flows(browser, right.url, engine === 'chromium'

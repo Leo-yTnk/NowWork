@@ -1,5 +1,5 @@
 import { RecordLinks } from '../components/RecordLinks';
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentPropsWithoutRef, type FormEvent } from 'react';
+import { lazy, Suspense, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef, type FormEvent } from 'react';
 import * as ContextMenu from '@radix-ui/react-context-menu';
 import { BookOpen, FilePenLine, FileText, Pencil, Trash2 } from 'lucide-react';
 import { Button, CreateButton, EmptyState, Segment, Stack, Surface, Toolbar } from '../components/ui';
@@ -81,7 +81,7 @@ export function Notebook({ subjectId, noteId, open, captureQuestion, createCard,
   const note = notes.find(({ id }) => id === noteId);
   const topics = [...new Set(notes.flatMap((page) => page.topic ? [page.topic] : []))];
   const visible = topic ? notes.filter((page) => page.topic === topic) : notes;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mobile && pagesOpen) sidebar.current?.querySelector<HTMLElement>('[aria-current="page"]')?.focus({ preventScroll: true });
   }, [mobile, pagesOpen]);
 
