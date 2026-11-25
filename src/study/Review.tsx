@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Layers, Pencil, Trash2 } from 'lucide-react';
-import { Button, Card, CreateButton, EmptyState, Surface } from '../components/ui';
+import { Button, CreateButton, EmptyState, Surface } from '../components/ui';
 import { RecordLinks } from '../components/RecordLinks';
 import { useApp } from '../state/AppState';
 import { uid, type Flashcard, type ReviewGrade } from '../types';
@@ -43,7 +43,7 @@ export function Review({ subjectId, selectedId }: { subjectId: string; selectedI
     }}><option value="">Todos</option>{[...new Set(cards.flatMap((card) => card.topic ? [card.topic] : []))].map((label) => <option key={label}>{label}</option>)}</select></label>}
     {draft && <Surface className="nw-padding"><FlashcardForm key={draft.id} card={draft}
       save={(card) => { app.saveFlashcard(card); setDraft(null); }} close={() => setDraft(null)} /></Surface>}
-      {next ? <Card className="nw-review-card" layout>
+    {next ? <Surface className="nw-review-card" layout>
       <span className="nw-muted">{reviewModes[next.mode ?? 'flashcard']}</span><h3>{next.front}</h3>
       {revealed === next.id ? <div className="nw-stack">{attempt.trim() && <p className="cognitive-content">Sua tentativa: {attempt}</p>}
         <div className="nw-answer">{next.back}</div>
@@ -56,17 +56,17 @@ export function Review({ subjectId, selectedId }: { subjectId: string; selectedI
           <Button onClick={() => { app.saveFlashcard({ ...next, due: dayOffset(now, 1) }); setFinishedSelected(true); setAttempt(''); }}>Reagendar para amanhã</Button></div>
       </form>}
       <RecordLinks record={{ type: 'card', id: next.id }} />
-    </Card> : <Surface><EmptyState icon={<Layers size={23} />} title={due.length && reached ? 'Limite sugerido de revisão para hoje' : cards.length ? 'Revisões em dia' : 'Crie seu primeiro cartão'}
+    </Surface> : <Surface><EmptyState icon={<Layers size={23} />} title={due.length && reached ? 'Limite sugerido de revisão para hoje' : cards.length ? 'Revisões em dia' : 'Crie seu primeiro cartão'}
       description={due.length && reached ? 'Você pode continuar agora ou retomar as revisões restantes mais tarde.' : 'Os cartões ficam disponíveis de acordo com as datas programadas.'}
       action={due.length && reached ? <Button onClick={() => setContinued(true)}>Continuar revisão</Button> : undefined} /></Surface>}
     {cards.length > 0 && <details className="cognitive-details"><summary>Todos os cartões ({cards.length})</summary>
-      <div className="nw-stack">{cards.map((card) => <Card className="nw-list-card" key={card.id}>
+      <div className="nw-stack">{cards.map((card) => <Surface className="nw-list-card" key={card.id}>
         <div><strong>{card.front}</strong><p className="nw-muted">{card.due <= now ? 'Para revisar' : new Date(card.due + 'T12:00:00').toLocaleDateString('pt-BR')}</p></div>
         <div className="nw-toolbar"><button type="button" className="nw-icon" aria-label={'Editar cartão ' + card.front} onClick={() => setDraft(card)}><Pencil size={16} /></button>
         <button type="button" className="nw-icon" aria-label={'Excluir cartão ' + card.front} onClick={() => {
           if (window.confirm('Excluir este cartão de revisão e seu histórico?')) { app.removeFlashcard(card.id); if (draft?.id === card.id) setDraft(null); }
         }}><Trash2 size={16} /></button></div>
-      </Card>)}</div>
+      </Surface>)}</div>
     </details>}
   </div>;
 }

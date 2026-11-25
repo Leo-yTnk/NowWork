@@ -1,8 +1,10 @@
 import { NumberSlider } from '../../components/NumberSlider';
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
-import { useMotionValue } from 'motion/react';
+import { motion, useMotionValue, useReducedMotion } from 'motion/react';
 import { GripVertical, Pencil, Trash2 } from 'lucide-react';
-import { Button, Card as CardSurface, IconButton, Toolbar } from '../../components/ui';
+import { Button, IconButton, Toolbar } from '../../components/ui';
+import { useApp } from '../../state/AppState';
+import { springs } from '../../lib/motion';
 import { getSubjectIcon, subjectIcons } from '../../lib/subjectAppearance';
 import { SubjectIcon } from '../Subjects';
 import { moveItem, type Card, type Cards } from '../../lib/collections';
@@ -67,6 +69,8 @@ type Gesture = { id: string; x: number; y: number; mode: 'mouse' | 'touch'; stag
 function CardGrid({ value, edit, editText, reorder }: {
   value: Cards; edit?: (item: Card) => void; editText?: (id: string, patch: Partial<CardText>) => void; reorder?: (id: string, index: number) => void;
 }) {
+  const { data } = useApp();
+  const reduced = useReducedMotion() || data.profile.reducedMotion;
   const grid = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
   const skipClick = useRef(0);
@@ -180,8 +184,8 @@ function CardGrid({ value, edit, editText, reorder }: {
       onLostPointerCapture={(event) => { if (gesture.current?.mode === 'mouse' && gesture.current.pointer === event.pointerId) finish(false); }}
       onPointerCancel={(event) => { if (gesture.current?.mode === 'mouse' && gesture.current.pointer === event.pointerId) finish(false); }}
       style={{ '--card-columns': value.config.columns } as CSSProperties}>
-      {ordered.map((item) => <CardSurface as="article" key={item.id} layout
-        data-card-id={item.id} data-held={held === item.id} data-placeholder={dragging?.id === item.id} className="collection-card">
+      {ordered.map((item) => <motion.article key={item.id} layout={reduced ? false : 'position'} transition={springs.layout}
+        data-card-id={item.id} data-held={held === item.id} data-placeholder={dragging?.id === item.id} className="surface collection-card">
         <div className="collection-card-content"><CardContent item={item} config={value.config}
           editText={editText ? (patch) => editText(item.id, patch) : undefined}
           actions={edit && <div className="collection-card-actions">
@@ -190,12 +194,12 @@ function CardGrid({ value, edit, editText, reorder }: {
               onPointerDown={(event) => startMouse(event, item.id, value.items.indexOf(item))}
               onClick={() => { if (performance.now() >= skipClick.current) edit(item); }}><GripVertical size={16} /></IconButton>
           </div>} /></div>
-      </CardSurface>)}
+      </motion.article>)}
     </div>
-    {moving && dragging && <CardSurface as="div" aria-hidden="true" className="collection-card collection-card-moving"
+    {moving && dragging && <motion.div aria-hidden="true" className="surface collection-card collection-card-moving"
       style={{ x: dx, y: dy, left: dragging.origin.left, top: dragging.origin.top, width: dragging.origin.width, height: dragging.origin.height }}>
       <div className="collection-card-content"><CardContent item={moving} config={value.config} /></div>
-    </CardSurface>}
+    </motion.div>}
   </div>;
 }
 
@@ -257,7 +261,7 @@ export function CardSet({ value, change, focusCardId }: { value: Cards; change: 
           <Range label="Ampliação do recorte" value={draft.crop} min={100} max={250} unit="%" onChange={(crop) => setDraft({ ...draft, crop })} />
         </>}
       </>}
-      <CardSurface as="div" className="collection-card"><div className="collection-card-content"><CardContent item={draft} config={config} /></div></CardSurface>
+      <div className="surface collection-card"><div className="collection-card-content"><CardContent item={draft} config={config} /></div></div>
       <MoveControls subject="card" index={index} count={value.items.length} move={(target) => reorder(draft.id, target)} />
       <Toolbar>
         <Button variant="primary" size="sm" onClick={() => {

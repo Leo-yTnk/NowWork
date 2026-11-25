@@ -14,14 +14,11 @@ Os dados ficam no navegador. Depois do primeiro acesso online, o service worker 
 
 ## Componentes do design
 
-- O Prism 2.1 usa `src/styles/tokens.css` para cor semântica, tipografia, espaçamento, geometria, movimento e camadas nos dois temas.
-- `Card` aplica a costura interna do design system. A variante `outlined` acrescenta a borda sólida e a variante `grouped` usa o raio dos grupos. Use `Surface` para banners, listas agrupadas, formulários e outros painéis.
-- Prata é a fonte padrão dos títulos e Plus Jakarta Sans é a fonte do corpo da interface e dos cadernos. As duas são empacotadas para uso offline. Blocos e trechos de código usam fonte monoespaçada por padrão. O editor respeita as fontes escolhidas nas preferências do caderno e na formatação do texto.
+- `src/styles/tokens.css` concentra cores, tipografia, espaçamento, raios e movimento para os dois temas.
+- Plus Jakarta Sans é a fonte padrão da interface e dos cadernos, empacotada para uso offline. Blocos e trechos de código usam fonte monoespaçada por padrão. O editor respeita as fontes escolhidas nas preferências do caderno e na formatação do texto.
 - `src/components/ui.tsx` e `src/styles/system.css` definem os componentes compartilhados, incluindo botões, superfícies, barras, grupos segmentados e navegação.
 - Regras de layout do espaço de estudos e da folha do editor ficam em `workspace.css` e `document.css`.
 - A navegação tem quatro áreas: Hoje, Planejar, Matérias e Estudar. Planejar reúne tarefas, agenda e caixa de entrada. Estudar reúne foco e progresso. A lista de matérias tem busca própria, e abrir uma matéria leva direto ao caderno. A URL mantém a área, matéria e página selecionadas.
-- A navegação principal fica embaixo em larguras abaixo de 600 CSS px. Em páginas de caderno, o cabeçalho e a dock mantêm o layout anterior, incluindo a troca da toolbar em 800 CSS px.
-- `src/styles/editor-toolbar-compat.css` preserva o contrato visual anterior da toolbar. O contexto `EditorToolbarScope` identifica seus selects nas montagens em portal, inclusive a partir da dock mobile. A folha de estilos dos documentos e as preferências de formatação seguem próprias.
 
 ## Desenvolvimento
 

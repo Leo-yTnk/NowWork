@@ -15,12 +15,12 @@ const statusNames = { active: 'Pendentes', done: 'Concluídas', archived: 'Arqui
 export function TaskList({ entries, selectedId }: { entries: Entry[]; selectedId?: string }) {
   const app = useApp();
   const reduce = !!useReducedMotion() || app.data.profile.reducedMotion;
-  return <Surface className="task-list" variant="grouped">{entries.map((entry) => <motion.div key={entry.id} layout={reduce ? false : 'position'} transition={springs.layout} className="nw-task">
+  return <div className="nw-stack">{entries.map((entry) => <motion.div key={entry.id} layout={reduce ? false : 'position'} transition={springs.layout} className="nw-task">
     {entry.status !== 'archived' && <button type="button" className={'nw-check ' + (entry.status === 'done' ? 'checked' : '')}
       aria-label={`${entry.status === 'done' ? 'Reabrir' : 'Concluir'} ${entry.title}`}
       onClick={() => entry.status === 'done' ? app.reopenEntry(entry.id) : app.completeEntry(entry.id)}>{entry.status === 'done' && <Check size={14} />}</button>}
     <EntryCard entry={entry} initiallyExpanded={entry.id === selectedId} />
-  </motion.div>)}</Surface>;
+  </motion.div>)}</div>;
 }
 
 export function Tasks({ subjectId, onAdd, onlyId }: { subjectId?: string; onAdd: () => void; onlyId?: string }) {

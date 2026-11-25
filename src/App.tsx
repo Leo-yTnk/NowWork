@@ -4,7 +4,7 @@ import { ArrowLeft, Check, CircleHelp, Coffee, Download, Pencil, ShieldCheck, Sp
 import nowWorkLogo from './assets/nowwork-logo.png';
 import { AppProvider, useApp } from './state/AppState';
 import { ElasticSheet } from './components/ElasticSheet';
-import { Button, IconButton, PageHeading, Segment, SettingsGroup, Stack, Switch } from './components/ui';
+import { Button, IconButton, PageHeading, Stack } from './components/ui';
 import { SectionContent, SectionNavigation, WorkspaceNavigation } from './components/WorkspaceNavigation';
 import { areas, parseRoute, planningViews, routeHref, studyViews, subjectViews, type Route, type SubjectView } from './lib/navigation';
 import { Agora } from './tabs/Agora';
@@ -75,37 +75,37 @@ function Settings() {
   };
   const demoCount = data.entries.filter((entry) => entry.source === 'demo').length;
   return <div className="settings-content">
-    <SettingsGroup title="Personalização">
+    <div className="settings-group"><div className="settings-group-title">Personalização</div>
       <label className="field-label">Seu nome <span className="subtle">(opcional)</span>
         <input maxLength={50} placeholder="Como quer ser chamado?" value={data.profile.name}
           onChange={(e) => app.updateProfile({name:e.target.value})}/></label>
-      <div className="settings-appearance">
-        <span className="settings-label">Aparência</span>
-        <Segment<Theme> label="Aparência" value={data.profile.theme} onChange={(theme) => app.updateProfile({ theme })}
-          options={[{ id: 'system', label: 'Automático' }, { id: 'light', label: 'Claro' }, { id: 'dark', label: 'Escuro' }]} />
-      </div>
-      <Switch label="Reduzir movimento" description="Desativa molas e movimentos não essenciais e respeita a preferência do dispositivo."
-        checked={data.profile.reducedMotion} onChange={(reducedMotion) => app.updateProfile({ reducedMotion })} />
-    </SettingsGroup>
+      <div className="settings-label">Aparência</div>
+      <div className="settings-options">{([['system','Automático'],['light','Claro'],['dark','Escuro']] as [Theme,string][]).map(([value,label]) =>
+        <button type="button" key={value} className={'setting-option ' + (data.profile.theme === value ? 'active' : '')}
+          aria-pressed={data.profile.theme === value} onClick={() => app.updateProfile({theme:value})}>
+          {label}{data.profile.theme === value && <Check size={15}/>}</button>)}</div>
+      <label className="toggle-row"><span><strong>Reduzir movimento</strong><small>Desativa molas e movimentos não essenciais; a preferência do dispositivo também é respeitada.</small></span>
+        <input type="checkbox" checked={data.profile.reducedMotion} onChange={(e) => app.updateProfile({reducedMotion:e.target.checked})}/></label>
+    </div>
     <CognitiveSettingsPanel />
     <LegacyRewards />
-    <SettingsGroup title="Seus dados">
+    <div className="settings-group"><div className="settings-group-title">Seus dados</div>
       <p className="settings-description"><ShieldCheck size={17}/> Suas informações ficam neste navegador. Nenhum cadastro ou servidor é necessário.</p>
       <div className="settings-buttons"><Button icon={<Download size={16}/>} onClick={download}>Exportar backup</Button>
         <Button icon={<Upload size={16}/>} onClick={() => input.current?.click()}>Importar JSON</Button>
         <input className="visually-hidden" aria-label="Selecionar backup JSON" type="file" accept=".json,application/json" ref={input} onChange={importFile}/></div>
-    </SettingsGroup>
-    <SettingsGroup title="Demonstração">
+    </div>
+    <div className="settings-group"><div className="settings-group-title">Demonstração</div>
       <p className="settings-description">Exemplos opcionais e claramente identificados. Não substituem seus registros reais.</p>
       <div className="settings-buttons"><Button icon={<Sparkles size={16}/>} onClick={app.addDemo}>Carregar exemplos</Button>
         {demoCount > 0 && <Button icon={<X size={16}/>} onClick={app.removeDemo}>Remover {demoCount} exemplos</Button>}</div>
-    </SettingsGroup>
-    <SettingsGroup title="Recomeçar" danger>
+    </div>
+    <div className="settings-group danger-zone"><div className="settings-group-title">Recomeçar</div>
       <p className="settings-description">Apaga os dados deste aplicativo no navegador. Exporte um backup se quiser guardá-los.</p>
       <Button variant="danger" icon={<Trash2 size={16}/>} onClick={() => {
         if (window.confirm('Apagar todas as matérias, páginas, cartões, registros e preferências? Esta ação não pode ser desfeita.')) app.clearAll();
       }}>Apagar todos os dados</Button>
-    </SettingsGroup>
+    </div>
     <p className="settings-version">NowWork · Código aberto sob licença MIT</p>
   </div>;
 }
@@ -198,7 +198,7 @@ function AppContent() {
       </div>}
       <motion.div key={routeKey} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? { duration: 0 } : springs.panel}>
-        {route.area === 'hoje' && <Dashboard subject={subjectPage} focus={() => open(areas.estudar)} capture={() => openCapture()} createTask={() => newTask()} openTask={openTask} />}
+        {route.area === 'hoje' && <Dashboard subject={subjectPage} focus={() => open(areas.estudar)} capture={() => openCapture()} openTask={openTask} />}
         {route.area === 'materias' && (!subject
           ? <Subjects open={subjectPage} create={createSubject} />
           : noteId ? <Notebook key={subject.id} subjectId={subject.id} noteId={noteId} open={(id) => subjectPage(subject.id, 'caderno', id)}
@@ -247,7 +247,7 @@ function AppContent() {
       </motion.div>
     </main>
 
-    <AnimatePresence>{sheet && <ElasticSheet key={sheet.kind} title={sheetTitles[sheet.kind]} immediateFocus={sheet.kind === 'capture'} focusField={sheet.kind !== 'settings'} onClose={close}>
+    <AnimatePresence>{sheet && <ElasticSheet key={sheet.kind} title={sheetTitles[sheet.kind]} immediateFocus={sheet.kind === 'capture'} onClose={close}>
       {(dismiss: () => void) => <>
         {sheet.kind === 'settings' && <Settings />}
         {sheet.kind === 'capture' && <CaptureForm draft={sheet.draft} close={dismiss} />}
