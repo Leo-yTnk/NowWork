@@ -86,9 +86,9 @@ export function SectionContent({ activeIndex, children }: { activeIndex: number;
   useLayoutEffect(() => { previous.current = activeIndex; }, [activeIndex]);
   const animate = direction !== 0 && !reduced && !data.profile.reducedMotion;
 
-  return <motion.div key={activeIndex} initial={animate ? { opacity: .55, x: direction * 10, filter: 'blur(2px)' } : false}
-    animate={{ opacity: 1, x: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
-    transition={reduced || data.profile.reducedMotion ? { duration: 0 } : { duration: .22, ease: [.2, .75, .3, 1], filter: { duration: .15 } }}>
+  return <motion.div key={activeIndex} initial={animate ? { opacity: .55, x: direction * 10 } : false}
+    animate={{ opacity: 1, x: 0 }}
+    transition={reduced || data.profile.reducedMotion ? { duration: 0 } : { duration: .24, ease: [.2, .75, .3, 1] }}>
     {children}
   </motion.div>;
 }

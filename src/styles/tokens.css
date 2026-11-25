@@ -8,58 +8,51 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --page: #e9e7e3;
-  --canvas: #eeece9;
+  --page: #f2f2f7;
+  --canvas: #ffffff;
   --editor-canvas: #fbfaf7;
   --editor-rail: #eeebe6;
   --editor-toolbar: #f5f2ed;
   --editor-divider: #d5cfc6;
-  --rail: #e7e5e1;
-  --surface: #f3f1ee;
-  --surface-soft: #e8e6e2;
-  --surface-raised: #f5f3f0;
-  --ink: #2b2927;
-  --ink-strong: #22201e;
-  --secondary: #5f5c58;
-  --tertiary: #706c67;
-  --line: #d9d6d1;
-  --stitch: #cfcbc5;
-  --accent-solid: #604a93;
+  --rail: #f2f2f7;
+  --surface: #ffffff;
+  --surface-soft: #e9e9ee;
+  --surface-raised: #ffffff;
+  --ink: #1c1c1e;
+  --ink-strong: #111113;
+  --secondary: #66666d;
+  --tertiary: #67676e;
+  --line: #e2e2e7;
+  --accent-solid: #0068d8;
   --accent-solid-ink: #ffffff;
-  --accent: var(--accent-solid);
-  --accent-dark: #4d367e;
-  --accent-soft: #eee8f7;
+  --accent: #005cbc;
+  --accent-dark: #0058b8;
+  --accent-soft: #e2eeff;
   --accent-contrast: var(--accent-solid-ink);
-  --amber: #805127;
-  --amber-soft: #f7eee1;
+  --amber: var(--warning);
+  --amber-soft: var(--warning-soft);
   --lavender: var(--accent);
   --lavender-soft: var(--accent-soft);
-  --danger: #9a494d;
-  --danger-soft: #ffebed;
-  --overlay: rgb(33 31 29 / 34%);
-  --shadow-card: 0 2px 4px rgb(33 31 29 / 3%);
-  --shadow-nav: 0 12px 35px rgb(33 31 29 / 15%);
-  --shadow-sheet: 0 -18px 65px rgb(33 31 29 / 19%);
-  --focus-surface: #e5e2dd;
-  --focus-glow: color-mix(in srgb, var(--ink) 7%, transparent);
-  --focus-stitch: color-mix(in srgb, var(--ink) 13%, transparent);
+  --danger: #b72824;
+  --danger-soft: #fce8e8;
+  --overlay: rgb(0 0 0 / 35%);
+  --shadow-card: none;
+  --shadow-nav: 0 8px 28px rgb(0 0 0 / 10%);
+  --shadow-sheet: 0 18px 60px rgb(0 0 0 / 18%);
+  --focus-surface: var(--accent-soft);
   --subject-mint: #e5f1e7; --subject-mint-ink: #305c49;
   --subject-violet: var(--accent-soft); --subject-violet-ink: var(--accent);
   --subject-blue: #e5edf9; --subject-blue-ink: #335a87;
   --subject-peach: var(--amber-soft); --subject-peach-ink: var(--amber);
   --subject-rose: #fae9ec; --subject-rose-ink: #8b4054;
-  --corner-shape: squircle;
   --workspace-nav-height: 51px;
-  --radius-xs: 14px;
-  --radius-sm: 18px;
-  --radius-md: 26px;
-  --radius-lg: 34px;
-  --radius-xl: 42px;
-  --card-border-width: 2px;
-  --focus-outline-width: 3px;
-  --control-border: color-mix(in srgb, var(--ink) 20%, transparent);
-  --card-edge: color-mix(in srgb, var(--ink) 9%, transparent);
-  --card-stitch: color-mix(in srgb, var(--ink) 8%, transparent);
+  --radius-xs: 6px;
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-group);
+  --radius-xl: var(--radius-panel);
+  --focus-outline-width: 2px;
+  --control-border: #898990;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -71,71 +64,118 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
-  --control-height: 42px;
+  --control-height: var(--target-min);
   --creation-button-width: 144px;
   --layer-popup: 110;
-  --popup-fill: color-mix(in srgb, var(--surface-raised) 85%, transparent);
-  --popup-blur: blur(14px) saturate(125%);
-  --select-popup-fill: color-mix(in srgb, var(--surface-raised) 82%, transparent);
-  --select-popup-blur: blur(3px);
-  --popup-divider: color-mix(in srgb, var(--ink) 10%, transparent);
+  --popup-fill: var(--glass-fill);
+  --popup-blur: var(--glass-filter);
+  --popup-divider: var(--line);
   --text-caption: .75rem;
   --text-control: .875rem;
-  --text-body: 1rem;
-  --text-section: 1.125rem;
-  --text-title: clamp(2rem, 4.2vw, 3rem);
+  --text-body: .875rem;
+  --text-section: 1.375rem;
+  --text-title: 2rem;
   --letter-title: -.01em;
   --content-width: 1130px;
   --content-inset: clamp(20px, 4vw, 58px);
   --ease-standard: cubic-bezier(.2, .75, .3, 1);
   --time-quick: 160ms;
+  --radius-control: 10px;
+  --radius-icon: 12px;
+  --radius-card: 18px;
+  --radius-group: 24px;
+  --radius-panel: 28px;
+  --radius-pill: 999px;
+  --success: #237b45;
+  --success-soft: #e4f3e8;
+  --warning: #855500;
+  --warning-soft: #fff1d8;
+  --glass-fill: rgb(255 255 255 / 92%);
+  --glass-edge: rgb(102 102 109 / 24%);
+  --glass-filter: blur(20px) saturate(150%);
+  --glass-clear-fill: rgb(20 28 40 / 78%);
+  --glass-clear-ink: #ffffff;
+  --layer-nav: 15;
+  --layer-skip: 20;
+  --layer-sheet: 80;
+  --layer-toast: 100;
+  --target-min: 44px;
+  --time-content: 240ms;
+  --text-title-1: 1.625rem;
+  --text-title-3: 1.125rem;
+  --text-headline: .9375rem;
+  --text-callout: .875rem;
+  --text-subhead: .8125rem;
+  --text-footnote: .75rem;
+  --switch-thumb: #ffffff;
+  --swatch-selection-ink: #111111;
+  --swatch-selection-fill: #ffffff;
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --page: #191817;
-  --canvas: #1c1b1a;
-  --editor-canvas: var(--canvas);
-  --editor-rail: var(--rail);
-  --editor-toolbar: var(--surface-soft);
-  --editor-divider: var(--line);
-  --rail: #1f1e1d;
-  --surface: #232221;
-  --surface-soft: #272624;
-  --surface-raised: #2a2927;
-  --ink: #eeece9;
-  --ink-strong: #faf8f5;
-  --secondary: #c3bfba;
-  --tertiary: #aaa6a1;
-  --line: #393734;
-  --stitch: #484541;
-  --accent: #d4c3ff;
-  --accent-dark: #e7ddff;
-  --accent-soft: #372c50;
-  --accent-contrast: #262039;
+  --page: #101012;
+  --canvas: #101012;
+  --editor-canvas: #1c1b1a;
+  --editor-rail: #1f1e1d;
+  --editor-toolbar: #272624;
+  --editor-divider: #393734;
+  --rail: #17171a;
+  --surface: #1e1e21;
+  --surface-soft: #333337;
+  --surface-raised: #29292d;
+  --ink: #f5f5f7;
+  --ink-strong: #ffffff;
+  --secondary: #acacb4;
+  --tertiary: #a0a0a8;
+  --line: #36363a;
+  --accent: var(--accent-solid);
+  --accent-dark: #90c2ff;
+  --accent-soft: #243a55;
+  --accent-contrast: var(--accent-solid-ink);
   --amber: #f4d8b6;
   --amber-soft: #473829;
-  --danger: #f5afb3;
-  --danger-soft: #49303a;
-  --overlay: rgba(0, 0, 0, .57);
-  --shadow-card: 0 2px 4px rgba(0, 0, 0, .08);
-  --shadow-nav: 0 16px 44px rgba(0, 0, 0, .32);
-  --shadow-sheet: 0 -18px 65px rgb(0 0 0 / 42%);
-  --focus-surface: #272523;
+  --danger: #ff766f;
+  --danger-soft: #42282b;
+  --overlay: rgb(0 0 0 / 57%);
+  --shadow-card: none;
+  --shadow-nav: 0 12px 36px rgb(0 0 0 / 32%);
+  --shadow-sheet: 0 18px 60px rgb(0 0 0 / 42%);
+  --focus-surface: var(--accent-soft);
   --subject-mint: #294334; --subject-mint-ink: #beebc9;
   --subject-blue: #283951; --subject-blue-ink: #bdd8ff;
   --subject-rose: #4b2c36; --subject-rose-ink: #ffcad8;
+  --control-border: #83838b;
+  --accent-solid: #69acff;
+  --accent-solid-ink: #101012;
+  --success: #65d88d;
+  --success-soft: #213b2c;
+  --warning: #ffc45a;
+  --warning-soft: #46371d;
+  --glass-fill: rgb(35 35 40 / 92%);
+  --glass-edge: rgb(255 255 255 / 18%);
+  --switch-thumb: #101012;
 }
-@media (max-width: 800px) {
+@media (width < 600px) {
   :root {
-    --radius-xs: 9px;
-    --radius-sm: 12px;
-    --radius-md: 17px;
-    --radius-lg: 21px;
-    --radius-xl: 25px;
-    --card-border-width: 1px;
-    --focus-outline-width: 2px;
+    --text-title: 2.125rem;
+    --text-title-1: 1.75rem;
+    --text-title-3: 1.25rem;
+    --text-headline: 1.0625rem;
+    --text-control: 1rem;
+    --text-body: 1.0625rem;
+    --text-callout: 1rem;
+    --text-subhead: .9375rem;
+    --text-footnote: .8125rem;
+    --radius-group: 20px;
+    --radius-panel: 24px;
   }
 }
+@media (pointer: fine) { :root { --target-min: 32px; } }
+@media (width < 600px), (any-pointer: coarse) { :root { --target-min: 44px; } }
+@media (prefers-contrast: more) {
+  :root, :root[data-theme='dark'] { --line: var(--control-border); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -147,5 +187,7 @@
 }
 
 @supports (corner-shape: squircle) {
-  *, *::before, *::after { corner-shape: var(--corner-shape); }
+  :where(.surface, .ds-popup, .elastic-sheet, .grouped-list, .nw-subject-mark, .nw-stat-icon, .empty-icon) {
+    corner-shape: squircle;
+  }
 }

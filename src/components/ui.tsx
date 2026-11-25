@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { Children, useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { ArrowUpRight, Inbox, Plus } from 'lucide-react';
@@ -27,11 +27,33 @@ export function CreateButton(props: Omit<ButtonProps, 'variant' | 'icon' | 'size
   return <Button {...props} variant="primary" icon={<Plus size={16} />} className={'btn-create ' + (props.className ?? '')} />;
 }
 
-export function Surface({ children, className = '', layout = false }: { children: ReactNode; className?: string; layout?: boolean }) {
+export function Surface({ children, className = '', layout = false, variant }: {
+  children: ReactNode; className?: string; layout?: boolean; variant?: 'outlined' | 'grouped' | 'editorial';
+}) {
   const reduce = useReducedMotion();
   const { data } = useApp();
-  return <motion.section layout={layout && !reduce && !data.profile.reducedMotion}
-    transition={springs.layout} className={'surface ' + className}>{children}</motion.section>;
+  return <motion.section layout={layout && !reduce && !data.profile.reducedMotion ? 'position' : false}
+    transition={springs.layout} className={'surface ' + className} data-variant={variant}>{children}</motion.section>;
+}
+
+export function SettingsGroup({ title, children, danger = false }: { title: string; children: ReactNode; danger?: boolean }) {
+  const id = useId();
+  return <section className={'settings-group' + (danger ? ' danger-zone' : '')} aria-labelledby={id}>
+    <h3 className="settings-group-title" id={id}>{title}</h3>
+    <div className="grouped-list">{Children.map(children, (child) => child && <div className="grouped-row">{child}</div>)}</div>
+  </section>;
+}
+
+export function Switch({ label, description, checked, onChange }: {
+  label: string; description?: string; checked: boolean; onChange: (value: boolean) => void;
+}) {
+  const descriptionId = useId();
+  return <label className="toggle-row">
+    <span><strong>{label}</strong>{description && <small id={descriptionId}>{description}</small>}</span>
+    <input className="ds-switch" type="checkbox" role="switch" aria-label={label} checked={checked}
+      aria-describedby={description ? descriptionId : undefined}
+      onChange={(event) => onChange(event.target.checked)} />
+  </label>;
 }
 
 export function Eyebrow({ children }: { children: ReactNode }) {

@@ -14,11 +14,14 @@ Os dados ficam no navegador. Depois do primeiro acesso online, o service worker 
 
 ## Componentes do design
 
-- `src/styles/tokens.css` concentra cores, tipografia, espaçamento, raios e movimento para os dois temas.
+- O Prism 2.1 usa `src/styles/tokens.css` para cor semântica, tipografia, espaçamento, geometria, movimento e camadas nos dois temas.
+- `Surface` oferece variantes para conteúdo agrupado, editorial e com contorno funcional. Configurações usam grupos com divisores internos. Vidro fica nos menus e na navegação inferior e tem fallback opaco.
 - Plus Jakarta Sans é a fonte padrão da interface e dos cadernos, empacotada para uso offline. Blocos e trechos de código usam fonte monoespaçada por padrão. O editor respeita as fontes escolhidas nas preferências do caderno e na formatação do texto.
 - `src/components/ui.tsx` e `src/styles/system.css` definem os componentes compartilhados, incluindo botões, superfícies, barras, grupos segmentados e navegação.
 - Regras de layout do espaço de estudos e da folha do editor ficam em `workspace.css` e `document.css`.
 - A navegação tem quatro áreas: Hoje, Planejar, Matérias e Estudar. Planejar reúne tarefas, agenda e caixa de entrada. Estudar reúne foco e progresso. A lista de matérias tem busca própria, e abrir uma matéria leva direto ao caderno. A URL mantém a área, matéria e página selecionadas.
+- A navegação principal fica embaixo em larguras abaixo de 600 CSS px. Em páginas de caderno, o cabeçalho e a dock mantêm o layout anterior, incluindo a troca da toolbar em 800 CSS px.
+- `src/styles/editor-toolbar-compat.css` preserva o contrato visual anterior da toolbar. O contexto `EditorToolbarScope` identifica seus selects nas montagens em portal, inclusive a partir da dock mobile. A folha de estilos dos documentos e as preferências de formatação seguem próprias.
 
 ## Desenvolvimento
 
@@ -30,6 +33,8 @@ npm run build
 ```
 
 O GitHub Actions publica o diretório `dist` no GitHub Pages a partir de `main`. O Vite gera caminhos relativos para que o site funcione no diretório publicado pelo GitHub Pages.
+
+Para comparar a aparência e exercitar os fluxos da versão anterior e do Prism em builds de produção, execute `node tests/prism-browser.cjs <dist-anterior> <dist-prism> <diretório-de-evidências>` com Playwright e pngjs disponíveis no ambiente de teste e Chromium, Firefox e WebKit instalados. O roteiro usa dados fictícios, produz comparativos e registra os resultados em JSON.
 
 Licença MIT.
 
