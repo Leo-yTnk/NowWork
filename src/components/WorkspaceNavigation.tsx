@@ -108,7 +108,13 @@ export function WorkspaceNavigation({ current, search, settings, capture, shortc
       <Toolbar label="Histórico e páginas" className="workspace-history">
         <div className="workspace-sidebar-toggle" data-visible={!!notebook} aria-hidden={!notebook}>
           <IconButton id={notebook?.toggleId} label={notebook?.pagesOpen ? 'Recolher páginas da matéria' : 'Expandir páginas da matéria'}
-            aria-expanded={notebook?.pagesOpen} aria-controls={notebook?.sidebarId} disabled={!notebook} onClick={notebook?.togglePages}>
+            aria-expanded={notebook?.pagesOpen} aria-controls={notebook?.sidebarId} disabled={!notebook} onClick={notebook?.togglePages}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && notebook?.pagesOpen) {
+                event.preventDefault();
+                notebook.togglePages();
+              }
+            }}>
             {notebook?.pagesOpen ? <PanelLeftClose size={19} /> : <PanelLeftOpen size={19} />}
           </IconButton>
         </div>
