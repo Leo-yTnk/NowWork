@@ -152,6 +152,7 @@
 .workspace-page { gap: var(--space-6); }
 .subject-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
 .dashboard-subjects { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.nw-subject-mark[data-shared-subject] { pointer-events: none; z-index: 2; }
 .subject-card { min-width: 0; --surface-radius: var(--radius-md); }
 .subject-card .ds-card-button strong, .today-subject-heading strong { font-weight: 580; letter-spacing: 0; }
 .subject-card .ds-card-button .nw-muted { font-weight: 400; }

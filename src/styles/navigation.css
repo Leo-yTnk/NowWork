@@ -51,11 +51,11 @@
 }
 .workspace-primary a[aria-current], .workspace-sections a[aria-current],
 .workspace-primary a:active, .workspace-sections a:active { color: var(--accent); }
-.workspace-primary a:active, .subject-directory-link:active {
+.subject-directory-link:active {
   background: var(--accent-soft);
   transition-duration: 0s;
 }
-.workspace-sections a:active { transition-duration: 0s; }
+.workspace-primary a:active, .workspace-sections a:active { transition-duration: 0s; }
 @media (hover: hover) {
   .workspace-primary a:hover, .workspace-sections a:hover { color: var(--accent); }
   .subject-directory-link:hover { background: var(--accent-soft); }
@@ -68,12 +68,6 @@
   grid-area: 1 / 1;
   visibility: hidden;
   font-weight: 700;
-}
-.workspace-indicator-slot { display: contents; }
-.workspace-current, .workspace-section-indicator {
-  position: absolute;
-  left: 0;
-  pointer-events: none;
 }
 .workspace-current {
   top: 4px;

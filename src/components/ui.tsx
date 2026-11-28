@@ -3,6 +3,7 @@ import { type ComponentPropsWithoutRef, type ReactNode } from 'react';
 import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { ArrowUpRight, Inbox, Plus } from 'lucide-react';
+import { SharedIndicator } from './SharedIndicator';
 
 type ButtonProps = Omit<ComponentPropsWithoutRef<typeof motion.button>, 'children' | 'size'> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -83,6 +84,7 @@ export function Segment<T extends string>({ label, options, value, onChange, cla
   label: string; options: readonly { id: T; label: ReactNode }[]; value: T; onChange: (value: T) => void; className?: string;
 }) {
   return <div className={'ds-segment ' + className} role="group" aria-label={label}>
+    <SharedIndicator marker="pressed" className="ds-segment-indicator" activeKey={value} />
     {options.map((item) => <Button key={item.id} variant="ghost" size="sm" aria-pressed={item.id === value}
       onClick={() => onChange(item.id)}>{item.label}</Button>)}
   </div>;

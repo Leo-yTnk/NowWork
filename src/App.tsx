@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, Check, CircleHelp, Coffee, Download, Pencil, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import nowWorkLogo from './assets/nowwork-logo.png';
@@ -12,6 +12,7 @@ import { Mente } from './tabs/Mente';
 import { Evolucao } from './tabs/Evolucao';
 import { validateData } from './lib/storage';
 import { springs } from './lib/motion';
+import { moveSubjectMark, sharedSubjectId, visibleSubjectMarkBounds } from './lib/subjectTransition';
 import { uid, type AppData, type Flashcard, type Subject, type Theme } from './types';
 import { CaptureForm, type CaptureDraft } from './study/CaptureForm';
 import { LegacyRewards } from './study/LegacyRewards';
@@ -29,16 +30,37 @@ import { WorkspaceSearch, TaskForm, SubjectForm } from './study/WorkspacePanels'
 
 type Sheet = { kind: 'capture'; draft?: CaptureDraft } | { kind: 'note-card'; card: Flashcard; sourceId: string } | { kind: 'settings' | 'break' | 'search' } | { kind: 'task'; subjectId?: string; dueAt?: string | null } | { kind: 'subject'; subject?: Subject };
 
-function useWorkspaceRoute() {
-  const [hash, setHash] = useState(() => window.location.hash);
+function useWorkspaceRoute(reduce: boolean) {
+  const [location, setLocation] = useState<{ hash: string; shared?: { id: string; from: DOMRect } }>(
+    () => ({ hash: window.location.hash }),
+  );
+  const renderedHash = useRef(location.hash);
+  const movement = useRef<Animation | undefined>(undefined);
   useEffect(() => {
-    const sync = () => setHash(window.location.hash);
+    const sync = () => {
+      const hash = window.location.hash;
+      const id = reduce ? undefined : sharedSubjectId(parseRoute(renderedHash.current), parseRoute(hash));
+      const from = id ? visibleSubjectMarkBounds(id) : undefined;
+      setLocation((previous) => hash === previous.hash ? previous : { hash, shared: id && from ? { id, from } : undefined });
+    };
     window.addEventListener('hashchange', sync);
+    sync();
     return () => window.removeEventListener('hashchange', sync);
-  }, []);
-  useEffect(() => { window.scrollTo(0, 0); }, [hash]);
+  }, [reduce]);
+
+  useLayoutEffect(() => {
+    renderedHash.current = location.hash;
+    window.scrollTo(0, 0);
+    movement.current = location.shared ? moveSubjectMark(location.shared.id, location.shared.from) : undefined;
+    return () => movement.current?.cancel();
+  }, [location]);
+
+  useLayoutEffect(() => {
+    if (reduce) movement.current?.cancel();
+  }, [reduce]);
+
   const open = (next: Route) => { window.location.hash = routeHref(next); };
-  return { route: parseRoute(hash), open };
+  return { route: parseRoute(location.hash), open, hasSharedTransition: !!location.shared };
 }
 
 function downloadBackup(data: AppData) {
@@ -112,10 +134,10 @@ function Settings() {
 
 function AppContent() {
   const app = useApp();
-  const { route, open } = useWorkspaceRoute();
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const systemReduced = useReducedMotion();
   const reduce = !!systemReduced || app.data.profile.reducedMotion;
+  const { route, open, hasSharedTransition } = useWorkspaceRoute(reduce);
   const subject = route.area === 'materias' ? app.data.subjects.find(({ id }) => id === route.subjectId) : undefined;
   const noteId = route.area === 'materias' && route.view === 'caderno'
     ? app.data.notes.find((note) => note.subjectId === subject?.id && note.id === route.noteId)?.id : undefined;
@@ -196,7 +218,7 @@ function AppContent() {
         <span>{app.saveError}</span>
         <Button size="sm" onClick={() => downloadBackup(app.data)}>Exportar backup</Button>
       </div>}
-      <motion.div key={routeKey} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      <motion.div key={routeKey} initial={reduce || hasSharedTransition ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
         transition={reduce ? { duration: 0 } : springs.panel}>
         {route.area === 'hoje' && <Dashboard subject={subjectPage} focus={() => open(areas.estudar)} capture={() => openCapture()} openTask={openTask} />}
         {route.area === 'materias' && (!subject
@@ -211,7 +233,7 @@ function AppContent() {
                 <PageHeading title={subject.title} icon={<div className="subject-heading-icons">
                   <a className="subject-directory-link" href={routeHref(areas.materias)} draggable={false} aria-label="Todas as matérias" title="Todas as matérias">
                     <ArrowLeft size={18} aria-hidden="true" />
-                  </a><SubjectMark subject={subject} />
+                  </a><SubjectMark subject={subject} shared />
                 </div>} action={<IconButton label="Editar matéria" onClick={() => setSheet({ kind: 'subject', subject })}><Pencil size={18} /></IconButton>} />
                 <SectionNavigation label="Nesta matéria" links={subjectViews.map(({ id, label }) => ({ label, active: route.view === id,
                   href: routeHref({ area: 'materias', subjectId: subject.id, view: id }) }))} />

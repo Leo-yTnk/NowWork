@@ -42,13 +42,15 @@
 .ds-icon-button[aria-pressed='true'] {
   background: var(--accent-soft); color: var(--accent);
 }
-.ds-segment { display: flex; width: fit-content; max-width: 100%; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1);
+/* One indicator moves behind the controls while the controls keep their DOM identity. */
+.ds-indicator-slot { display: contents; }
+.ds-shared-indicator { position: absolute; top: 0; left: 0; pointer-events: none; }
+.ds-segment { position: relative; isolation: isolate; display: flex; width: fit-content; max-width: 100%; gap: var(--space-1); flex-wrap: wrap; padding: var(--space-1);
   border: 1px solid var(--control-border); background: var(--surface-soft); border-radius: var(--radius-sm); }
-.ds-segment .btn { border-radius: calc(var(--radius-sm) - var(--space-1)); }
-.ds-segment .btn[aria-pressed='true'] {
-  background: var(--accent-solid);
-  color: var(--accent-solid-ink);
-}
+.ds-segment .btn, .ds-segment-indicator { border-radius: calc(var(--radius-sm) - var(--space-1)); }
+.ds-segment-indicator { z-index: -1; background: var(--accent-soft); }
+.ds-segment .btn:hover:not(:disabled) { background: transparent; }
+.ds-segment .btn[aria-pressed='true'] { color: var(--accent); }
 .ds-page-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
 .ds-page-heading-main { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
 .ds-page-heading h1 { font-size: var(--text-title); letter-spacing: var(--letter-title); line-height: 1.07; margin: 0; overflow-wrap: anywhere; }

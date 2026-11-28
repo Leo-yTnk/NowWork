@@ -2,9 +2,9 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Ellipsis, House, LibraryBig, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings2, Timer } from 'lucide-react';
 import { areas, routeHref, type Area } from '../lib/navigation';
-import { springs } from '../lib/motion';
 import { useApp } from '../state/AppState';
 import { IconButton, Toolbar } from './ui';
+import { SharedIndicator } from './SharedIndicator';
 
 const destinations = [
   { area: 'hoje', title: 'Hoje', Icon: House },
@@ -51,33 +51,6 @@ function useHistoryControls() {
   return history;
 }
 
-function NavigationIndicator({ activeKey, className }: { activeKey?: string; className: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [bounds, setBounds] = useState<{ x: number; y: number; width: number }>();
-  const reduced = useReducedMotion();
-  const { data } = useApp();
-
-  useLayoutEffect(() => {
-    const nav = ref.current?.parentElement;
-    const active = nav?.querySelector<HTMLElement>('a[aria-current="page"]');
-    if (!nav || !active) { setBounds(undefined); return; }
-    const measure = () => {
-      const { offsetLeft: x, offsetTop: y, offsetWidth: width } = active;
-      setBounds((last) => last?.x === x && last.y === y && last.width === width ? last : { x, y, width });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(nav);
-    nav.querySelectorAll('a').forEach((link) => observer.observe(link));
-    return () => observer.disconnect();
-  }, [activeKey]);
-
-  return <span ref={ref} className="workspace-indicator-slot" aria-hidden="true">
-    {bounds && <motion.span className={className} initial={false} animate={bounds}
-      transition={reduced || data.profile.reducedMotion ? { duration: 0 } : springs.layout} />}
-  </span>;
-}
-
 export function SectionContent({ activeIndex, children }: { activeIndex: number; children: ReactNode }) {
   const previous = useRef(activeIndex);
   const reduced = useReducedMotion();
@@ -100,7 +73,7 @@ export function WorkspaceNavigation({ current, search, settings, capture, shortc
   return <header className="workspace-header">
     <div className="workspace-header-inner">
       <nav className="workspace-primary" aria-label="Navegação principal">
-        <NavigationIndicator className="workspace-current" activeKey={current} />
+        <SharedIndicator marker="page" className="workspace-current" activeKey={current} />
         {destinations.map(({ area, title, Icon }) => <a key={area} href={routeHref(areas[area])} draggable={false} aria-label={title} aria-current={current === area ? 'page' : undefined}>
           <Icon size={17} aria-hidden="true" /><span className="workspace-tab-label" data-label={title}><span>{title}</span></span>
         </a>)}
@@ -131,7 +104,7 @@ export function WorkspaceNavigation({ current, search, settings, capture, shortc
 
 export function SectionNavigation({ label, links }: { label: string; links: readonly { label: string; href: string; active: boolean }[] }) {
   return <nav className="workspace-sections" aria-label={label}>
-    <NavigationIndicator className="workspace-section-indicator" activeKey={links.find((link) => link.active)?.href} />
+    <SharedIndicator marker="page" className="workspace-section-indicator" activeKey={links.find((link) => link.active)?.href} />
     {links.map(({ label, href, active }) => <a key={href} href={href} draggable={false} aria-current={active ? 'page' : undefined}>
       <span className="workspace-tab-label" data-label={label}><span>{label}</span></span>
     </a>)}

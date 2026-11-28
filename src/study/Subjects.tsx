@@ -22,15 +22,17 @@ export function SubjectIcon({ icon }: { icon: ReturnType<typeof getSubjectIcon> 
   </svg>;
 }
 
-export function SubjectMark({ subject }: { subject: Subject }) {
-  return <span className="nw-subject-mark subject-tone" style={subjectTone(subject.color)}><SubjectIcon icon={getSubjectIcon(subject)} /></span>;
+export function SubjectMark({ subject, shared = false }: { subject: Subject; shared?: boolean }) {
+  return <span className="nw-subject-mark subject-tone" style={subjectTone(subject.color)} data-shared-subject={shared ? subject.id : undefined}>
+    <SubjectIcon icon={getSubjectIcon(subject)} />
+  </span>;
 }
 
 export function SubjectCard({ subject, open }: { subject: Subject; open: () => void }) {
   const counts = useSubjectCounts(subject.id);
   return <Surface layout className="subject-card">
     <Button className="ds-card-button" variant="ghost" onClick={open}>
-      <SubjectMark subject={subject} />
+      <SubjectMark subject={subject} shared />
       <strong>{subject.title}</strong>
       <span className="nw-muted">{countLabel(counts.tasks, 'pendência', 'pendências')} · {countLabel(counts.notes, 'página', 'páginas')}</span>
       <ArrowRight className="ds-card-arrow" size={16} aria-hidden="true" />
